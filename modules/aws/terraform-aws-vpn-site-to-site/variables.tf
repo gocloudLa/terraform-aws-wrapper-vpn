@@ -72,7 +72,7 @@ variable "vpn_connection_static_routes_only" {
 
 variable "vpn_connection_static_routes_destinations" {
   type        = list(string)
-  description = "List of CIDR blocks to be used as destination for static routes. Routes to destinations will be propagated to the route tables defined in `route_table_ids`"
+  description = "On-prem prefixes for static routing. With a Virtual Private Gateway these become `aws_vpn_connection_route`; with a Transit Gateway they become `aws_ec2_transit_gateway_route` entries on `transit_gateway_route_table_id` (AWS does not allow VPN connection routes on TGW VPNs)."
   default     = []
   nullable    = false
 }
@@ -307,14 +307,16 @@ variable "vpn_connection_tunnel2_cloudwatch_log_output_format" {
 /*----------------------------------------------------------------------*/
 variable "transit_gateway_id" {
   type        = string
-  default     = ""
-  description = "Existing Transit Gateway ID. If provided, the module will not create a Virtual Private Gateway but instead will use the transit_gateway. For setting up transit gateway we can use the cloudposse/transit-gateway/aws module and pass the output transit_gateway_id to this variable"
+  default     = null
+  nullable    = true
+  description = "Existing Transit Gateway ID. If provided, the module will not create a Virtual Private Gateway but instead will use the transit_gateway."
 }
 
 variable "transit_gateway_route_table_id" {
   type        = string
-  description = "The ID of the route table for the transit gateway that you want to associate + propogate the VPN connection's TGW attachment"
+  description = "TGW route table ID. Required (non-empty) when using a TGW-attached VPN with `static_routes_only` so on-prem CIDRs can be installed via `aws_ec2_transit_gateway_route`; also used for optional entries in `transit_gateway_routes`."
   default     = null
+  nullable    = true
 }
 
 variable "transit_gateway_routes" {

@@ -79,5 +79,27 @@ module "wrapper_vpn" {
 
       tags = local.custom_tags
     }
+    "vpn-tgw-01" = {
+      # vpc = "networking" # Key into vpc_parameter (not vpc_name)
+      transit_gateway_id             = "tgw-0882eb490f1000e15"
+      transit_gateway_route_table_id = "tgw-rtb-0aa86b7268ab0aa9e"
+      virtual_private_gateway        = null
+      customer_gateway = {
+        ip_address = "111.111.111.111" // Required, Public IP of client VPN 
+      }
+      # Tunnel resource settings; if omitted, null/default values apply
+      vpn_connection = {
+        remote_ipv4_network_cidr = "10.40.0.0/16" // CIDR block shared from our VPC
+        # If using static routing for specific machines, use
+        static_routes_only         = true
+        static_routes_destinations = ["10.40.0.0/16"]
+        # static_routes_destinations = ["10.50.0.0/16", "10.51.0.0/16"]
+        # route_table_names          = ["dmc-lv1-private", "dmc-lv1-public"]
+        tunnel1_preshared_key          = "12345678" # local.secrets.vpn_preshared_key
+        tunnel1_cloudwatch_log_enabled = true
+        tunnel2_preshared_key          = "12345678" # local.secrets.vpn_preshared_key
+        tunnel2_cloudwatch_log_enabled = true
+      }
+    }
   }
 }

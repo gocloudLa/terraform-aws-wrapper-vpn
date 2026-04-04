@@ -27,7 +27,7 @@ resource "aws_cloudwatch_log_group" "this" {
 
 ### VPC
 resource "aws_vpn_gateway" "this" {
-  count = !local.transit_gateway_enabled || var.virtual_private_gateway_id == null ? 1 : 0
+  count = local.transit_gateway_enabled || var.virtual_private_gateway_id != null ? 0 : 1
 
   vpc_id          = var.vpc_id
   amazon_side_asn = var.vpn_gateway_amazon_side_asn
@@ -38,7 +38,7 @@ resource "aws_vpn_gateway" "this" {
 resource "aws_vpn_connection" "this" {
   count = var.create_vpn_connection ? 1 : 0
 
-  vpn_gateway_id     = local.transit_gateway_enabled ? aws_vpn_gateway.this[0].id : null
+  vpn_gateway_id     = local.transit_gateway_enabled ? null : aws_vpn_gateway.this[0].id
   transit_gateway_id = local.transit_gateway_enabled ? var.transit_gateway_id : null
 
   customer_gateway_id      = var.customer_gateway_id != null ? var.customer_gateway_id : aws_customer_gateway.this[0].id
@@ -96,57 +96,65 @@ resource "aws_vpn_connection" "this" {
   tags = var.tags
 }
 
-# # https://www.terraform.io/docs/providers/aws/r/vpn_gateway_route_propagation.html
-# resource "aws_vpn_gateway_route_propagation" "this" {
-#   count          = !var.transit_gateway_enabled ? length(var.route_table_ids) : 0
+# https://registry.terraform.io/providers/hashicorp/aws/latest/docs/resources/vpn_gateway_route_propagation
+resource "aws_vpn_gateway_route_propagation" "this" {
+  count = !local.transit_gateway_enabled && var.virtual_private_gateway_id == null && length(var.route_table_ids) > 0 ? length(var.route_table_ids) : 0
 
-#   vpn_gateway_id = aws_vpn_gateway.this.id
-#   route_table_id = element(var.route_table_ids, count.index)
-# }
+  vpn_gateway_id = aws_vpn_gateway.this[0].id
+  route_table_id = var.route_table_ids[count.index]
+}
 
-# # https://www.terraform.io/docs/providers/aws/r/vpn_connection_route.html
-# resource "aws_vpn_connection_route" "this" {
-#   count                  = var.vpn_connection_static_routes_only ? length(var.vpn_connection_static_routes_destinations) : 0
+# VGW-only. TGW-attached VPN static routes must use EC2 Transit Gateway routes (see aws_ec2_transit_gateway_route.vpn_static).
+# https://registry.terraform.io/providers/hashicorp/aws/latest/docs/resources/vpn_connection_route
+resource "aws_vpn_connection_route" "this" {
+  count = var.create_vpn_connection && var.vpn_connection_static_routes_only && !local.transit_gateway_enabled ? length(var.vpn_connection_static_routes_destinations) : 0
 
-#   vpn_connection_id      = aws_vpn_connection.this.id
-#   destination_cidr_block = element(var.vpn_connection_static_routes_destinations, count.index)
-# }
+  vpn_connection_id      = aws_vpn_connection.this[0].id
+  destination_cidr_block = var.vpn_connection_static_routes_destinations[count.index]
+}
 
-# ## Transit Gateway VPN Connection Attachments
+# TGW-attached VPN + static_routes_only: AWS rejects CreateVpnConnectionRoute; install prefixes on the TGW route table instead.
+# https://registry.terraform.io/providers/hashicorp/aws/latest/docs/resources/ec2_transit_gateway_route
+resource "aws_ec2_transit_gateway_route" "vpn_static" {
+  for_each = var.create_vpn_connection && local.transit_gateway_enabled && local.transit_gateway_route_table_configured && var.vpn_connection_static_routes_only ? toset(var.vpn_connection_static_routes_destinations) : toset([])
 
-# # Required to tag VPN Connection TGW Attachments out of bound of the VPN Connection resource
-# # If we do not do this, the TGW Attachment will not have a name tag or any tags, which makes it difficult to identify in the console.
-# # https://registry.terraform.io/providers/hashicorp/aws/latest/docs/resources/ec2_tag
-# resource "aws_ec2_tag" "this" {
-#   for_each = local.transit_gateway_enabled ? var.tags : {}
+  destination_cidr_block         = each.value
+  transit_gateway_route_table_id = var.transit_gateway_route_table_id
+  transit_gateway_attachment_id  = aws_vpn_connection.this[0].transit_gateway_attachment_id
+}
 
-#   resource_id = aws_vpn_connection.this.transit_gateway_attachment_id
-#   key         = each.key
-#   value       = each.value
-# }
+# Transit Gateway: attachment is created with the VPN connection; tags apply to the attachment. Route table association/propagation are owned by the TGW (outside this module).
+
+# https://registry.terraform.io/providers/hashicorp/aws/latest/docs/resources/ec2_tag
+resource "aws_ec2_tag" "transit_gateway_attachment" {
+  for_each = var.create_vpn_connection && local.transit_gateway_enabled ? var.tags : {}
+
+  resource_id = aws_vpn_connection.this[0].transit_gateway_attachment_id
+  key         = each.key
+  value       = each.value
+}
 
 # # https://registry.terraform.io/providers/hashicorp/aws/latest/docs/resources/ec2_transit_gateway_route_table_association
 # resource "aws_ec2_transit_gateway_route_table_association" "this" {
-#   count = local.transit_gateway_enabled && var.transit_gateway_route_table_id != null ? 1 : 0
+#   count = var.create_vpn_connection && local.transit_gateway_enabled && local.transit_gateway_route_table_configured ? 1 : 0
 
-#   transit_gateway_attachment_id  = aws_vpn_connection.this.transit_gateway_attachment_id
+#   transit_gateway_attachment_id  = aws_vpn_connection.this[0].transit_gateway_attachment_id
 #   transit_gateway_route_table_id = var.transit_gateway_route_table_id
 # }
 
 # # https://registry.terraform.io/providers/hashicorp/aws/latest/docs/resources/ec2_transit_gateway_route_table_propagation
 # resource "aws_ec2_transit_gateway_route_table_propagation" "this" {
-#   count = local.transit_gateway_enabled && var.transit_gateway_route_table_id != null ? 1 : 0
+#   count = var.create_vpn_connection && local.transit_gateway_enabled && local.transit_gateway_route_table_configured ? 1 : 0
 
-#   transit_gateway_attachment_id  = aws_vpn_connection.this.transit_gateway_attachment_id
+#   transit_gateway_attachment_id  = aws_vpn_connection.this[0].transit_gateway_attachment_id
 #   transit_gateway_route_table_id = var.transit_gateway_route_table_id
 # }
+# https://registry.terraform.io/providers/hashicorp/aws/latest/docs/resources/ec2_transit_gateway_route
+resource "aws_ec2_transit_gateway_route" "this" {
+  for_each = var.create_vpn_connection && local.transit_gateway_enabled && local.transit_gateway_route_table_configured ? var.transit_gateway_routes : {}
 
-# # https://registry.terraform.io/providers/hashicorp/aws/latest/docs/resources/ec2_transit_gateway_route
-# resource "aws_ec2_transit_gateway_route" "this" {
-#   for_each = local.transit_gateway_enabled && var.transit_gateway_route_table_id != null ? var.transit_gateway_routes : {}
-
-#   blackhole                      = each.value.blackhole
-#   destination_cidr_block         = each.value.destination_cidr_block
-#   transit_gateway_attachment_id  = aws_vpn_connection.this.transit_gateway_attachment_id
-#   transit_gateway_route_table_id = var.transit_gateway_route_table_id
-# }
+  blackhole                      = try(each.value.blackhole, false)
+  destination_cidr_block         = each.value.destination_cidr_block
+  transit_gateway_route_table_id = var.transit_gateway_route_table_id
+  transit_gateway_attachment_id  = try(each.value.blackhole, false) ? null : aws_vpn_connection.this[0].transit_gateway_attachment_id
+}

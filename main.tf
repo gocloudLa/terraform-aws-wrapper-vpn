@@ -10,7 +10,7 @@ locals {
 
         transit_gateway_id             = try(var.tgw_parameter.transit_gateway[vpn_config.tgw].ec2_transit_gateway_id, vpn_config.transit_gateway_id, null)
         transit_gateway_route_table_id = try(vpn_config.transit_gateway_route_table_id, null)
-        transit_gateway_routes         = try(vpn_config.transit_gateway_routes, null)
+        transit_gateway_routes         = try(vpn_config.transit_gateway_routes, {})
         route_table_ids                = try(data.aws_route_tables.route_tables[vpn_key].ids, null)
 
         customer_gateway_ip_address       = try(vpn_config.customer_gateway.ip_address, null)
