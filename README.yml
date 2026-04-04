@@ -49,41 +49,24 @@ quick_start: |
   vpn_defaults = var.vpn_defaults
   ```
 features:
-  - icon: 🔐
-    title: Customer Gateway and VPN connection
-    short_description: Create (or reference) a Customer Gateway and a Site-to-Site VPN with two tunnels
+  - icon: 🔗
+    title: Wiring with VPC / TGW wrappers and route tables by name
+    short_description: Resolve `vpc` / `tgw` from shared maps and propagate static routes using route table `Name` tags
     long_description: |
-      Each `vpn_parameters` entry resolves `customer_gateway` fields (`ip_address`, optional `device_name`, `bgp_asn`, certificates) and `vpn_connection` options (static vs BGP, CIDRs, per-tunnel IKE/crypto, CloudWatch logging). See `modules/aws/terraform-aws-vpn-site-to-site/variables.tf` for the full low-level variable list passed through from the wrapper.
+      The wrapper’s purpose is not to restate the AWS VPN API but to align with other Standard Platform modules: `vpc` and `tgw` resolve IDs from `vpc_parameter` and `tgw_parameter` (typically outputs from `wrapper-vpc` / `wrapper-tgw`) so you do not hard-code resource IDs per environment. When you set `vpn_connection.route_table_names`, the module resolves table IDs with a data source filtered on `tag:Name`; those strings must match the route tables’ `Name` tag (usually how the VPC wrapper names them).
     examples:
-      - title: Minimal customer_gateway + vpn_connection
+      - title: Wrapper keys and route_table_names
         code: |
           ```hcl
-          customer_gateway = {
-            ip_address = "203.0.113.10"
-          }
+          vpc = "prod"
+          # tgw = "tgw-01"  # alternativa a VPC/VGW
+
           vpn_connection = {
-            remote_ipv4_network_cidr = "10.0.0.0/16"
-            static_routes_only       = false
+            static_routes_only         = true
+            static_routes_destinations = ["10.1.0.0/24"]
+            route_table_names          = ["mycompany-prod-private"]
           }
           ```
-  - icon: 🌐
-    title: VPC (VGW) or Transit Gateway
-    short_description: Attach the VPN to a VPC via Virtual Private Gateway or to a Transit Gateway
-    long_description: |
-      Set `vpc` to a key in `vpc_parameter.vpcs` to resolve `vpc_id`, or pass `vpc_id` directly. For TGW-based VPN, set `tgw` to a key in `tgw_parameter.transit_gateway` (outputs from the TGW wrapper) or pass `transit_gateway_id`. Optional `transit_gateway_route_table_id` and `transit_gateway_routes` feed TGW static routes for the VPN attachment.
-    examples: []
-  - icon: 🛤️
-    title: Route propagation to VPC route tables
-    short_description: Resolve route tables by Name tag for VGW route propagation
-    long_description: |
-      When `vpn_connection.route_table_names` is set, the wrapper uses a `aws_route_tables` data source filtered by `tag:Name`. Returned IDs are passed as `route_table_ids` to the inner module so static routes can propagate. Names must match the `Name` tag on your route tables (often aligned with the VPC wrapper naming).
-    examples: []
-  - icon: ⚙️
-    title: Tunnel and logging options
-    short_description: Per-tunnel IKE versions, Phase 1/2 algorithms, PSKs, DPD, and CloudWatch logs
-    long_description: |
-      Under `vpn_connection`, use keys such as `tunnel1_preshared_key`, `tunnel1_ike_versions`, `tunnel1_phase1_encryption_algorithms`, `tunnel1_cloudwatch_log_enabled`, and the same for `tunnel2_*`. Defaults are applied in the root `main.tf` when omitted.
-    examples: []
 
 important_notes: |
   - **Secrets**: Preshared keys and sensitive tunnel settings end up in Terraform state; prefer `variable` + external secrets (SSM, Secrets Manager) or `-var` / CI secrets.
