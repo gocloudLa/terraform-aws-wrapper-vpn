@@ -74,11 +74,13 @@ module "wrapper_vpn" {
       }
 
       vpc_routes = {
-        "networking-private" = {
-          destination_cidr_block = ["10.50.10.0/24", "10.50.11.0/24"]
-        }
-        "networking-public" = {
-          destination_cidr_block = ["10.50.10.0/24", "10.50.11.0/24"]
+        "networking" = {
+          "private" = {
+            destination_cidr_block = ["10.50.10.0/24", "10.50.11.0/24"]
+          }
+          "public" = {
+            destination_cidr_block = ["10.50.10.0/24", "10.50.11.0/24"]
+          }
         }
       }
     }
@@ -101,6 +103,8 @@ module "wrapper_vpn" {
         # On-prem prefix toward the VPN attachment in the TGW route table (one entry per CIDR).
         static_routes_only = true
         static_routes_destinations     = ["10.60.0.0/16"]
+
+        route_table_keys = []
 
         tunnel1_preshared_key          = "12345678" # local.secrets.vpn_preshared_key
         tunnel1_cloudwatch_log_enabled = true

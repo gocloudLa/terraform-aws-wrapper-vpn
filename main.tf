@@ -144,21 +144,22 @@ locals {
   create_routes_tmp = [
     for vpn_key, vpn_config in var.vpn_parameters :
     [
-      for vpc_route_table_name, vpc_route_table_values in try(vpn_config.vpc_routes, {}) :
-      [
-        for key in distinct(concat(
-          try(vpc_route_table_values.destination_cidr_block, []),
-          try(vpc_route_table_values.destination_cidr, [])
-        )) :
-        {
-          "${vpn_key}-${vpc_route_table_name}-${key}" = {
-            route_table_id              = var.vpc_parameter.route_tables[vpc_route_table_name].id
-            destination_cidr_block      = key
-            destination_ipv6_cidr_block = null // to be supported with IPv6
-            transit_gateway_id          = null
-            gateway_id                  = module.vpn[vpn_key].virtual_private_gateway_id
-          }
-        } if((length(lookup(vpn_config, "vpc_routes", {})) > 0))
+      for vpc_name, vpc_values in try(vpn_config.vpc_routes, {}) : [
+        for vpc_route_table_name, vpc_route_table_values in try(vpc_values, {}) : [
+          for key in distinct(concat(
+            try(vpc_route_table_values.destination_cidr_block, []),
+            try(vpc_route_table_values.destination_cidr, [])
+          )) :
+          {
+            "${vpn_key}-${vpc_name}-${vpc_route_table_name}-${key}" = {
+              route_table_id              = var.vpc_parameter.route_tables["${vpc_name}-${vpc_route_table_name}"].id
+              destination_cidr_block      = key
+              destination_ipv6_cidr_block = null // to be supported with IPv6
+              transit_gateway_id          = null
+              gateway_id                  = module.vpn[vpn_key].virtual_private_gateway_id
+            }
+          } if((length(lookup(vpn_config, "vpc_routes", {})) > 0))
+        ]
       ]
     ]
   ]

@@ -50,11 +50,13 @@ quick_start: |
           tunnel2_cloudwatch_log_enabled       = true
         }
         vpc_routes = {
-          "networking-private" = {
-            destination_cidr_block = ["10.50.10.0/24", "10.50.11.0/24"]
-          }
-          "networking-public" = {
-            destination_cidr_block = ["10.50.10.0/24", "10.50.11.0/24"]
+          "networking" = {
+            "private" = {
+              destination_cidr_block = ["10.50.10.0/24", "10.50.11.0/24"]
+            }
+            "public" = {
+              destination_cidr_block = ["10.50.10.0/24", "10.50.11.0/24"]
+            }
           }
         }
       }
@@ -84,7 +86,7 @@ features:
     title: VPC attachment and route table updates (VGW mode)
     short_description: VGW in the VPC, propagation into selected route tables, optional explicit `aws_route` via `vpc_routes`
     long_description: |
-      Point the VPN entry at a `vpc` key (or `vpc_id`). The wrapper creates or reuses a Virtual Private Gateway, attaches it to that VPC, and wires the Site-to-Site connection to the VGW. Set `vpn_connection.route_table_keys` to route-table keys from `vpc_parameter.route_tables` so AWS installs VPN routes into those tables (`aws_vpn_gateway_route_propagation`). Optionally add **`vpc_routes`**: a map of the same keys → lists of `destination_cidr_block` values for explicit `aws_route` resources toward the VGW (use when you need specific prefixes without relying on propagation alone; avoid duplicating CIDRs already learned via propagation).
+      Point the VPN entry at a `vpc` key (or `vpc_id`). The wrapper creates or reuses a Virtual Private Gateway, attaches it to that VPC, and wires the Site-to-Site connection to the VGW. Set `vpn_connection.route_table_keys` to route-table keys from `vpc_parameter.route_tables` so AWS installs VPN routes into those tables (`aws_vpn_gateway_route_propagation`). Optionally add **`vpc_routes`**: nested map `{ <vpc_key> = { <route_table_suffix> = { destination_cidr_block = [...] } } }` (e.g. `private` / `public` → keys `"<vpc_key>-private"` in `vpc_parameter.route_tables`) for explicit `aws_route` toward the VGW; avoid duplicating CIDRs already learned via propagation.
     examples:
       - title: Configuration Code
         code: |
@@ -105,11 +107,13 @@ features:
                 tunnel2_preshared_key      = var.vpn_psk_tunnel2
               }
               vpc_routes = {
-                "networking-private" = {
-                  destination_cidr_block = ["10.50.10.0/24", "10.50.11.0/24"]
-                }
-                "networking-public" = {
-                  destination_cidr_block = ["10.50.10.0/24", "10.50.11.0/24"]
+                "networking" = {
+                  "private" = {
+                    destination_cidr_block = ["10.50.10.0/24", "10.50.11.0/24"]
+                  }
+                  "public" = {
+                    destination_cidr_block = ["10.50.10.0/24", "10.50.11.0/24"]
+                  }
                 }
               }
             }
@@ -149,7 +153,7 @@ important_notes: |
   - **Secrets**: Preshared keys and sensitive tunnel settings end up in Terraform state; prefer `variable` + external secrets (SSM, Secrets Manager) or `-var` / CI secrets.
   - **VPC key**: Use `vpc` (string) matching a key in `vpc_parameter.vpcs`, or supply `vpc_id` when not using the VPC wrapper map.
   - **TGW key**: Use `tgw` matching a key in `tgw_parameter.transit_gateway` (same shape as `examples/complete/locals.tf`). Resolves `ec2_transit_gateway_id` and (unless overridden) route table from `ec2_transit_gateway_association_default_route_table_id` then `ec2_transit_gateway_route_table_id`. Override with `transit_gateway_id` / `transit_gateway_route_table_id` when needed.
-  - **Route tables (VGW)**: `vpn_connection.route_table_keys` is required (list; use `[]` for TGW-only VPNs). Each key must exist in `vpc_parameter.route_tables` or the plan fails. Enables `aws_vpn_gateway_route_propagation`. Optional **`vpc_routes`** adds explicit `aws_route` entries to the VGW; avoid duplicating CIDRs already installed via propagation.
+  - **Route tables (VGW)**: `vpn_connection.route_table_keys` is required (list; use `[]` for TGW-only VPNs). Each key must exist in `vpc_parameter.route_tables` or the plan fails. Enables `aws_vpn_gateway_route_propagation`. Optional **`vpc_routes`** is `{ <vpc_key> = { <suffix> = { destination_cidr_block / destination_cidr } } }` and resolves route tables as `"<vpc_key>-<suffix>"` in `vpc_parameter.route_tables`; avoid duplicating CIDRs already installed via propagation.
   - **Submodule reference**: Behaviour and resource wiring are implemented in `modules/aws/terraform-aws-vpn-site-to-site` (variables mirror AWS resources).
   - **Client VPN**: Placeholder sections in `main.tf` / `variables.tf` are not implemented yet.
 
@@ -200,5 +204,5 @@ input_table: |
   | vpn_connection_tunnel2_startup_action | Tunnel 2 startup action (`add` or `start`). | `string` | `"add"` | no |
   | vpn_connection_tunnel2_cloudwatch_log_enabled | Enable CloudWatch logging for tunnel 2. | `bool` | `false` | no |
   | vpn_connection_tunnel2_cloudwatch_log_output_format | Log format for tunnel 2 (`json` or `text`). | `string` | `"json"` | no |
-  | vpc_routes | Wrapper-only: per VPN entry, map of `vpc_parameter.route_tables` keys to `destination_cidr_block` / `destination_cidr` lists; creates root `aws_route.vpn` to the VGW. | `map` | `{}` | no |
-  | tags | Tags for this VPC and its resources. | `map` | `{}` |
+  | vpc_routes | Wrapper-only: `{ <vpc_key> = { <suffix> = { destination_cidr_block / destination_cidr } } }` → `vpc_parameter.route_tables["<vpc_key>-<suffix>"]`; root `aws_route.vpn` to VGW. | `map` | `{}` | no |
+  | tags | Tags for this VPC and its resources. | `map` | `{}` | no |
