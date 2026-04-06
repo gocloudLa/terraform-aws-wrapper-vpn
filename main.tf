@@ -7,11 +7,24 @@ locals {
       "${vpn_key}" = {
         vpc_id                      = try(var.vpc_parameter.vpcs[vpn_config.vpc].vpc_id, vpn_config.vpc_id, null)
         vpn_gateway_amazon_side_asn = try(vpn_config.virtual_private_gateway.amazon_side_asn, 64512)
+        virtual_private_gateway_id  = try(vpn_config.virtual_private_gateway.virtual_private_gateway_id, null)
 
-        transit_gateway_id             = try(var.tgw_parameter.transit_gateway[vpn_config.tgw].ec2_transit_gateway_id, vpn_config.transit_gateway_id, null)
-        transit_gateway_route_table_id = try(vpn_config.transit_gateway_route_table_id, null)
-        transit_gateway_routes         = try(vpn_config.transit_gateway_routes, {})
-        route_table_ids                = try(data.aws_route_tables.route_tables[vpn_key].ids, null)
+        transit_gateway_id = try(
+          vpn_config.transit_gateway_id,
+          var.tgw_parameter.transit_gateway[vpn_config.tgw].ec2_transit_gateway_id,
+          null
+        )
+        transit_gateway_route_table_id = try(
+          vpn_config.transit_gateway_route_table_id,
+          var.tgw_parameter.transit_gateway[vpn_config.tgw].ec2_transit_gateway_association_default_route_table_id,
+          var.tgw_parameter.transit_gateway[vpn_config.tgw].ec2_transit_gateway_route_table_id,
+          null
+        )
+        transit_gateway_routes = try(vpn_config.transit_gateway_routes, {})
+        route_table_ids = [
+          for route_table_key in vpn_config.vpn_connection.route_table_keys :
+          var.vpc_parameter.route_tables[route_table_key].id
+        ]
 
         customer_gateway_ip_address       = try(vpn_config.customer_gateway.ip_address, null)
         customer_gateway_device_name      = try(vpn_config.customer_gateway.device_name, null)
@@ -74,6 +87,7 @@ module "vpn" {
 
   vpc_id                       = each.value.vpc_id
   vpn_gateway_amazon_side_asn  = each.value.vpn_gateway_amazon_side_asn
+  virtual_private_gateway_id   = each.value.virtual_private_gateway_id
   customer_gateway_device_name = each.value.customer_gateway_device_name
   customer_gateway_bgp_asn     = each.value.customer_gateway_bgp_asn
   customer_gateway_ip_address  = each.value.customer_gateway_ip_address
@@ -126,38 +140,39 @@ module "vpn" {
 }
 
 
-## Client VPN (TODO)
+locals {
+  create_routes_tmp = [
+    for vpn_key, vpn_config in var.vpn_parameters :
+    [
+      for vpc_route_table_name, vpc_route_table_values in try(vpn_config.vpc_routes, {}) :
+      [
+        for key in distinct(concat(
+          try(vpc_route_table_values.destination_cidr_block, []),
+          try(vpc_route_table_values.destination_cidr, [])
+        )) :
+        {
+          "${vpn_key}-${vpc_route_table_name}-${key}" = {
+            route_table_id              = var.vpc_parameter.route_tables[vpc_route_table_name].id
+            destination_cidr_block      = key
+            destination_ipv6_cidr_block = null // to be supported with IPv6
+            transit_gateway_id          = null
+            gateway_id                  = module.vpn[vpn_key].virtual_private_gateway_id
+          }
+        } if((length(lookup(vpn_config, "vpc_routes", {})) > 0))
+      ]
+    ]
+  ]
+  create_routes = merge(flatten(local.create_routes_tmp)...)
+}
 
-# locals {
-#   create_routes_tmp = [
-#     for vpn_key, vpn_config in var.vpn_parameters :
-#     [
-#       for vpc_route_table_name, vpc_route_table_values in try(vpn_config.vpc_routes, {}) :
-#       [
-#         for key in try(vpc_route_table_values.destination_cidr_block, vpc_route_table_values.destination_ipv6_cidr_block, []) :
-#         {
-#           "${vpn_config.vpc_name}-${vpc_route_table_name}-${key}" = {
-#             route_table_id              = var.vpc_parameter.route_tables["${vpc_name}-${vpc_route_table_name}"].id
-#             destination_cidr_block      = key
-#             destination_ipv6_cidr_block = null // to be supported with IPv6
-#             transit_gateway_id          = lookup(vpn_config, "create_vpn", true) && try(vpn_config.transit_gateway_id, null) != null ? var.tgw_parameter.transit_gateway[vpn_config.tgw].ec2_transit_gateway_id : null
-#             gateway_id                  = lookup(vpn_config, "create_vpn", true) && try(vpn_config.transit_gateway_id, null) == null ? module.vpn[vpn_key].virtual_private_gateway_id : null
-#           }
-#         } if((length(lookup(vpn_config, "vpc_routes", {})) > 0))
-#       ]
-#     ]
-#   ]
-#   create_routes = merge(flatten(local.create_routes_tmp)...)
-# }
+resource "aws_route" "vpn" {
+  for_each = local.create_routes
 
-# resource "aws_route" "transit_gateway" {
-#   for_each = local.create_routes
+  route_table_id = each.value.route_table_id
 
-#   route_table_id = each.value.route_table_id
+  destination_cidr_block      = each.value.destination_cidr_block
+  destination_ipv6_cidr_block = each.value.destination_ipv6_cidr_block
 
-#   destination_cidr_block      = each.value.destination_cidr_block
-#   destination_ipv6_cidr_block = each.value.destination_ipv6_cidr_block
-
-#   transit_gateway_id = each.value.transit_gateway_id
-#   gateway_id         = each.value.gateway_id
-# }
+  transit_gateway_id = each.value.transit_gateway_id
+  gateway_id         = each.value.gateway_id
+}

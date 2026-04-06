@@ -1,6 +1,3 @@
 locals {
-
-  custom_tags = {
-
-  }
+  
 }

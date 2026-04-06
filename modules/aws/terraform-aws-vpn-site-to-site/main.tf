@@ -1,4 +1,4 @@
-# https://www.terraform.io/docs/providers/aws/r/customer_gateway.html
+# https://registry.terraform.io/providers/hashicorp/aws/latest/docs/resources/customer_gateway
 resource "aws_customer_gateway" "this" {
   count = var.customer_gateway_id == null ? 1 : 0
 
@@ -34,11 +34,11 @@ resource "aws_vpn_gateway" "this" {
   tags            = var.tags
 }
 
-# https://www.terraform.io/docs/providers/aws/r/vpn_connection.html
+# https://registry.terraform.io/providers/hashicorp/aws/latest/docs/resources/vpn_connection
 resource "aws_vpn_connection" "this" {
   count = var.create_vpn_connection ? 1 : 0
 
-  vpn_gateway_id     = local.transit_gateway_enabled ? null : aws_vpn_gateway.this[0].id
+  vpn_gateway_id     = try(aws_vpn_gateway.this[0].id, var.virtual_private_gateway_id, null)
   transit_gateway_id = local.transit_gateway_enabled ? var.transit_gateway_id : null
 
   customer_gateway_id      = var.customer_gateway_id != null ? var.customer_gateway_id : aws_customer_gateway.this[0].id
@@ -98,9 +98,9 @@ resource "aws_vpn_connection" "this" {
 
 # https://registry.terraform.io/providers/hashicorp/aws/latest/docs/resources/vpn_gateway_route_propagation
 resource "aws_vpn_gateway_route_propagation" "this" {
-  count = !local.transit_gateway_enabled && var.virtual_private_gateway_id == null && length(var.route_table_ids) > 0 ? length(var.route_table_ids) : 0
+  count = !local.transit_gateway_enabled && length(var.route_table_ids) > 0 ? length(var.route_table_ids) : 0
 
-  vpn_gateway_id = aws_vpn_gateway.this[0].id
+  vpn_gateway_id = try(aws_vpn_gateway.this[0].id, var.virtual_private_gateway_id, null)
   route_table_id = var.route_table_ids[count.index]
 }
 
@@ -134,6 +134,16 @@ resource "aws_ec2_tag" "transit_gateway_attachment" {
   value       = each.value
 }
 
+# https://registry.terraform.io/providers/hashicorp/aws/latest/docs/resources/ec2_transit_gateway_route
+resource "aws_ec2_transit_gateway_route" "this" {
+  for_each = var.create_vpn_connection && local.transit_gateway_enabled && local.transit_gateway_route_table_configured ? var.transit_gateway_routes : {}
+
+  blackhole                      = try(each.value.blackhole, false)
+  destination_cidr_block         = each.value.destination_cidr_block
+  transit_gateway_route_table_id = var.transit_gateway_route_table_id
+  transit_gateway_attachment_id  = try(each.value.blackhole, false) ? null : aws_vpn_connection.this[0].transit_gateway_attachment_id
+}
+
 # # https://registry.terraform.io/providers/hashicorp/aws/latest/docs/resources/ec2_transit_gateway_route_table_association
 # resource "aws_ec2_transit_gateway_route_table_association" "this" {
 #   count = var.create_vpn_connection && local.transit_gateway_enabled && local.transit_gateway_route_table_configured ? 1 : 0
@@ -149,12 +159,3 @@ resource "aws_ec2_tag" "transit_gateway_attachment" {
 #   transit_gateway_attachment_id  = aws_vpn_connection.this[0].transit_gateway_attachment_id
 #   transit_gateway_route_table_id = var.transit_gateway_route_table_id
 # }
-# https://registry.terraform.io/providers/hashicorp/aws/latest/docs/resources/ec2_transit_gateway_route
-resource "aws_ec2_transit_gateway_route" "this" {
-  for_each = var.create_vpn_connection && local.transit_gateway_enabled && local.transit_gateway_route_table_configured ? var.transit_gateway_routes : {}
-
-  blackhole                      = try(each.value.blackhole, false)
-  destination_cidr_block         = each.value.destination_cidr_block
-  transit_gateway_route_table_id = var.transit_gateway_route_table_id
-  transit_gateway_attachment_id  = try(each.value.blackhole, false) ? null : aws_vpn_connection.this[0].transit_gateway_attachment_id
-}

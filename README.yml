@@ -12,79 +12,193 @@ module_badges:
     alt: "Terraform Registry"
 quick_start: |
   ```hcl
-  # Inside: module "wrapper_vpn" { source = "gocloudLa/wrapper-vpn/aws" ... }
-
-  metadata = local.metadata
-
-  vpc_parameter = {
-    vpcs         = module.wrapper_vpc.vpcs
-    subnets      = module.wrapper_vpc.subnets
-    route_tables = module.wrapper_vpc.route_tables
-  }
-
-  tgw_parameter = {
-    transit_gateway = module.wrapper_tgw.transit_gateway
-  }
-
   vpn_parameters = {
-    "vpn-01" = {
-      vpc = "prod"
-      virtual_private_gateway = {
-        amazon_side_asn = 64512
+      # VGW in VPC: propagation into listed route tables + optional explicit vpc_routes to the VGW
+      "vpn-vpc" = {
+        vpc                     = "networking" # key in vpc_parameter.vpcs
+        virtual_private_gateway = {}             # create VGW; or pass virtual_private_gateway_id to reuse
+        customer_gateway = {
+          ip_address = "203.0.113.10"
+        }
+        vpn_connection = {
+          local_ipv4_network_cidr    = "10.50.0.0/16"
+          remote_ipv4_network_cidr   = "10.20.0.0/16"
+          static_routes_only         = true
+          static_routes_destinations = ["10.50.0.0/16"]
+          route_table_keys           = ["networking-private", "networking-public"]
+          tunnel1_preshared_key      = var.vpn_psk_tunnel1 # min 8 chars; never commit real keys
+          tunnel2_preshared_key      = var.vpn_psk_tunnel2
+          tunnel1_ike_versions       = ["ikev2"]
+          tunnel1_startup_action     = "start"
+          tunnel1_dpd_timeout_action = "none"
+          tunnel1_phase1_dh_group_numbers      = ["14"]
+          tunnel1_phase1_encryption_algorithms = ["AES128"]
+          tunnel1_phase1_integrity_algorithms  = ["SHA2-256"]
+          tunnel1_phase2_dh_group_numbers      = ["14"]
+          tunnel1_phase2_encryption_algorithms = ["AES256"]
+          tunnel1_phase2_integrity_algorithms  = ["SHA2-256"]
+          tunnel1_cloudwatch_log_enabled       = true
+          tunnel2_ike_versions                 = ["ikev2"]
+          tunnel2_startup_action               = "start"
+          tunnel2_dpd_timeout_action           = "none"
+          tunnel2_phase1_dh_group_numbers      = ["14"]
+          tunnel2_phase1_encryption_algorithms = ["AES128"]
+          tunnel2_phase1_integrity_algorithms  = ["SHA2-256"]
+          tunnel2_phase2_dh_group_numbers      = ["14"]
+          tunnel2_phase2_encryption_algorithms = ["AES256"]
+          tunnel2_phase2_integrity_algorithms  = ["SHA2-256"]
+          tunnel2_cloudwatch_log_enabled       = true
+        }
+        vpc_routes = {
+          "networking-private" = {
+            destination_cidr_block = ["10.50.10.0/24", "10.50.11.0/24"]
+          }
+          "networking-public" = {
+            destination_cidr_block = ["10.50.10.0/24", "10.50.11.0/24"]
+          }
+        }
       }
-      customer_gateway = {
-        ip_address = "203.0.113.10"
-      }
-      vpn_connection = {
-        remote_ipv4_network_cidr   = "10.0.0.0/16"
-        static_routes_only         = true
-        static_routes_destinations = ["10.1.0.0/24"]
-        route_table_names          = ["mycompany-prod-private"]
-        tunnel1_preshared_key      = "use-a-secret-or-var" # min 8 chars; do not commit real keys
-        tunnel2_preshared_key      = "use-a-secret-or-var"
-      }
-    }
-  }
 
-  vpn_defaults = var.vpn_defaults
+      # TGW attachment: no VGW; route_table_keys = []; static routes target the TGW VPN attachment
+      "vpn-tgw" = {
+        tgw                     = "tgw-01" # key in tgw_parameter.transit_gateway
+        virtual_private_gateway = null
+        customer_gateway = {
+          ip_address = "198.51.100.20"
+        }
+        vpn_connection = {
+          local_ipv4_network_cidr    = "10.60.0.0/16"
+          remote_ipv4_network_cidr   = "10.16.0.0/12" # single CIDR on connection; use aggregate if multiple VPC CIDRs behind TGW
+          static_routes_only         = true
+          static_routes_destinations = ["10.60.0.0/16"]
+          route_table_keys           = []
+          tunnel1_preshared_key      = var.vpn_psk_tunnel1
+          tunnel2_preshared_key      = var.vpn_psk_tunnel2
+          tunnel1_cloudwatch_log_enabled = true
+          tunnel2_cloudwatch_log_enabled = true
+        }
+      }
   ```
 features:
-  - icon: 🔗
-    title: Wiring with VPC / TGW wrappers and route tables by name
-    short_description: Resolve `vpc` / `tgw` from shared maps and propagate static routes using route table `Name` tags
+  - icon: 🛣️
+    title: VPC attachment and route table updates (VGW mode)
+    short_description: VGW in the VPC, propagation into selected route tables, optional explicit `aws_route` via `vpc_routes`
     long_description: |
-      The wrapper’s purpose is not to restate the AWS VPN API but to align with other Standard Platform modules: `vpc` and `tgw` resolve IDs from `vpc_parameter` and `tgw_parameter` (typically outputs from `wrapper-vpc` / `wrapper-tgw`) so you do not hard-code resource IDs per environment. When you set `vpn_connection.route_table_names`, the module resolves table IDs with a data source filtered on `tag:Name`; those strings must match the route tables’ `Name` tag (usually how the VPC wrapper names them).
+      Point the VPN entry at a `vpc` key (or `vpc_id`). The wrapper creates or reuses a Virtual Private Gateway, attaches it to that VPC, and wires the Site-to-Site connection to the VGW. Set `vpn_connection.route_table_keys` to route-table keys from `vpc_parameter.route_tables` so AWS installs VPN routes into those tables (`aws_vpn_gateway_route_propagation`). Optionally add **`vpc_routes`**: a map of the same keys → lists of `destination_cidr_block` values for explicit `aws_route` resources toward the VGW (use when you need specific prefixes without relying on propagation alone; avoid duplicating CIDRs already learned via propagation).
     examples:
-      - title: Wrapper keys and route_table_names
+      - title: Configuration Code
         code: |
           ```hcl
-          vpc = "prod"
-          # tgw = "tgw-01"  # alternativa a VPC/VGW
+          vpn_parameters = {
+            "vpn-vpc" = {
+              vpc                     = "networking"
+              virtual_private_gateway = {}
+              customer_gateway = {
+                ip_address = "203.0.113.10"
+              }
+              vpn_connection = {
+                remote_ipv4_network_cidr   = "10.20.0.0/16"
+                static_routes_only         = true
+                static_routes_destinations = ["10.50.0.0/16"]
+                route_table_keys           = ["networking-private", "networking-public"]
+                tunnel1_preshared_key      = var.vpn_psk_tunnel1
+                tunnel2_preshared_key      = var.vpn_psk_tunnel2
+              }
+              vpc_routes = {
+                "networking-private" = {
+                  destination_cidr_block = ["10.50.10.0/24", "10.50.11.0/24"]
+                }
+                "networking-public" = {
+                  destination_cidr_block = ["10.50.10.0/24", "10.50.11.0/24"]
+                }
+              }
+            }
+          }
+          ```
 
-          vpn_connection = {
-            static_routes_only         = true
-            static_routes_destinations = ["10.1.0.0/24"]
-            route_table_names          = ["mycompany-prod-private"]
+  - icon: 🌐
+    title: Transit Gateway attachment (TGW mode)
+    short_description: VPN terminates on the TGW; set `tgw`, `virtual_private_gateway = null`, and `route_table_keys = []`
+    long_description: |
+      Use **`tgw`** (key into `tgw_parameter.transit_gateway`, same shape as `wrapper-tgw` outputs) so the connection attaches to the Transit Gateway instead of a VGW. Set **`virtual_private_gateway = null`** and **`vpn_connection.route_table_keys = []`** (VPC route propagation does not apply). `static_routes_destinations` drive static routes toward the VPN attachment in the resolved TGW route table. `remote_ipv4_network_cidr` on `aws_vpn_connection` is still a single value—if several VPC CIDRs sit behind the TGW, use an aggregate that covers them (as in `examples/complete`). Override IDs with `transit_gateway_id` / `transit_gateway_route_table_id` when not using the wrapper map.
+    examples:
+      - title: Configuration Code
+        code: |
+          ```hcl
+          vpn_parameters = {
+            "vpn-tgw" = {
+              tgw                     = "tgw-01"
+              virtual_private_gateway = null
+              customer_gateway = {
+                ip_address = "198.51.100.20"
+              }
+              vpn_connection = {
+                local_ipv4_network_cidr    = "10.60.0.0/16"
+                remote_ipv4_network_cidr   = "10.16.0.0/12"
+                static_routes_only         = true
+                static_routes_destinations = ["10.60.0.0/16"]
+                route_table_keys           = []
+                tunnel1_preshared_key      = var.vpn_psk_tunnel1
+                tunnel2_preshared_key      = var.vpn_psk_tunnel2
+              }
+            }
           }
           ```
 
 important_notes: |
   - **Secrets**: Preshared keys and sensitive tunnel settings end up in Terraform state; prefer `variable` + external secrets (SSM, Secrets Manager) or `-var` / CI secrets.
   - **VPC key**: Use `vpc` (string) matching a key in `vpc_parameter.vpcs`, or supply `vpc_id` when not using the VPC wrapper map.
-  - **TGW key**: Use `tgw` matching a key in `tgw_parameter.transit_gateway` (e.g. output map from `wrapper-tgw`), or set `transit_gateway_id` explicitly.
-  - **Route table names**: `route_table_names` must match the **`Name` tag** values on existing route tables in the account/region.
+  - **TGW key**: Use `tgw` matching a key in `tgw_parameter.transit_gateway` (same shape as `examples/complete/locals.tf`). Resolves `ec2_transit_gateway_id` and (unless overridden) route table from `ec2_transit_gateway_association_default_route_table_id` then `ec2_transit_gateway_route_table_id`. Override with `transit_gateway_id` / `transit_gateway_route_table_id` when needed.
+  - **Route tables (VGW)**: `vpn_connection.route_table_keys` is required (list; use `[]` for TGW-only VPNs). Each key must exist in `vpc_parameter.route_tables` or the plan fails. Enables `aws_vpn_gateway_route_propagation`. Optional **`vpc_routes`** adds explicit `aws_route` entries to the VGW; avoid duplicating CIDRs already installed via propagation.
   - **Submodule reference**: Behaviour and resource wiring are implemented in `modules/aws/terraform-aws-vpn-site-to-site` (variables mirror AWS resources).
   - **Client VPN**: Placeholder sections in `main.tf` / `variables.tf` are not implemented yet.
 
 input_table: |
-  | vpc | Key into `vpc_parameter.vpcs` for `vpc_id`. | `string` | no |
-  | vpc_id | Explicit VPC ID if not using `vpc`. | `string` | no |
-  | tgw | Key into `tgw_parameter.transit_gateway` for `ec2_transit_gateway_id`. | `string` | no |
-  | transit_gateway_id | Explicit Transit Gateway ID. | `string` | no |
-  | transit_gateway_route_table_id | TGW route table for static routes. | `string` | no |
-  | transit_gateway_routes | Map of TGW routes (`destination_cidr_block`, optional `blackhole`). | `map` | no |
-  | virtual_private_gateway | `amazon_side_asn` for VGW (and future VGW overrides). | `object` | no |
-  | customer_gateway | `ip_address` (required to create CGW), optional `device_name`, `bgp_asn`, `certificate_arn`, etc. | `object` | no |
-  | vpn_connection | Connection options: `static_routes_only`, `static_routes_destinations`, `route_table_names`, `remote_ipv4_network_cidr`, `local_ipv4_network_cidr`, `log_retention_in_days`, and all `tunnel1_*` / `tunnel2_*` keys. | `object` | no |
-  | create_vpn_connection | Whether to create the VPN connection. | `bool` | no |
-  | tags | Extra tags (merged with `common_tags` / `Name`). | `map` | no |
+  | create_vpn_connection | If set to `true`, the VPN connection will be created. | `bool` | `true` | no |
+  | vpc_id | The ID of the VPC to which the Virtual Private Gateway will be attached. | `string` | `null` | no |
+  | vpn_gateway_amazon_side_asn | ASN for the Amazon side of the VPN gateway. | `number` | `64512` | no |
+  | virtual_private_gateway_id | ID of an existing VGW; if null the submodule creates one when using VPC mode. | `string` | `null` | no |
+  | customer_gateway_device_name | Device name of the Customer Gateway. | `string` | `null` | no |
+  | customer_gateway_bgp_asn | BGP ASN for the Customer Gateway. | `number` | `65000` | no |
+  | customer_gateway_ip_address | Public IP of the customer gateway (Internet-routable). | `string` | `null` | no |
+  | route_table_ids | Route table IDs for VGW route propagation. | `list(string)` | `[]` | no |
+  | transit_gateway_id | Transit Gateway ID when the VPN attaches to a TGW instead of a VGW. | `string` | `null` | no |
+  | transit_gateway_route_table_id | TGW route table for static routes / optional TGW routes. | `string` | `null` | no |
+  | transit_gateway_routes | Map of extra TGW routes (`destination_cidr_block`, optional `blackhole`). | `map` | `{}` | no |
+  | vpn_connection_static_routes_only | Use static routes only (no BGP). | `bool` | `false` | no |
+  | vpn_connection_static_routes_destinations | On-prem CIDRs for static routing (VGW or TGW). | `list(string)` | `[]` | no |
+  | vpn_connection_local_ipv4_network_cidr | IPv4 CIDR on the customer (on-premises) side. | `string` | `"0.0.0.0/0"` | no |
+  | vpn_connection_remote_ipv4_network_cidr | IPv4 CIDR on the AWS side of the connection. | `string` | `"0.0.0.0/0"` | no |
+  | vpn_connection_log_retention_in_days | CloudWatch log retention for VPN logs. | `number` | `30` | no |
+  | vpn_connection_tunnel1_dpd_timeout_action | DPD timeout action for tunnel 1 (`clear`, `none`, `restart`). | `string` | `"clear"` | no |
+  | vpn_connection_tunnel1_ike_versions | Permitted IKE versions for tunnel 1. | `list(string)` | `[]` | no |
+  | vpn_connection_tunnel1_inside_cidr | Inside CIDR for tunnel 1. | `string` | `null` | no |
+  | vpn_connection_tunnel1_phase1_encryption_algorithms | Phase 1 encryption algorithms for tunnel 1. | `list(string)` | `[]` | no |
+  | vpn_connection_tunnel1_phase2_encryption_algorithms | Phase 2 encryption algorithms for tunnel 1. | `list(string)` | `[]` | no |
+  | vpn_connection_tunnel1_phase1_integrity_algorithms | Phase 1 integrity algorithms for tunnel 1. | `list(string)` | `[]` | no |
+  | vpn_connection_tunnel1_phase2_integrity_algorithms | Phase 2 integrity algorithms for tunnel 1. | `list(string)` | `[]` | no |
+  | vpn_connection_tunnel1_phase1_dh_group_numbers | Phase 1 DH groups for tunnel 1. | `list(string)` | `[]` | no |
+  | vpn_connection_tunnel1_phase2_dh_group_numbers | Phase 2 DH groups for tunnel 1. | `list(string)` | `[]` | no |
+  | vpn_connection_tunnel1_phase1_lifetime_seconds | Phase 1 IKE lifetime (seconds) for tunnel 1. | `string` | `"28800"` | no |
+  | vpn_connection_tunnel1_phase2_lifetime_seconds | Phase 2 lifetime (seconds) for tunnel 1. | `string` | `"3600"` | no |
+  | vpn_connection_tunnel1_preshared_key | Preshared key for tunnel 1. | `string` | `null` | no |
+  | vpn_connection_tunnel1_startup_action | Tunnel 1 startup action (`add` or `start`). | `string` | `"add"` | no |
+  | vpn_connection_tunnel1_cloudwatch_log_enabled | Enable CloudWatch logging for tunnel 1. | `bool` | `false` | no |
+  | vpn_connection_tunnel1_cloudwatch_log_output_format | Log format for tunnel 1 (`json` or `text`). | `string` | `"json"` | no |
+  | vpn_connection_tunnel2_dpd_timeout_action | DPD timeout action for tunnel 2. | `string` | `"clear"` | no |
+  | vpn_connection_tunnel2_ike_versions | Permitted IKE versions for tunnel 2. | `list(string)` | `[]` | no |
+  | vpn_connection_tunnel2_inside_cidr | Inside CIDR for tunnel 2. | `string` | `null` | no |
+  | vpn_connection_tunnel2_phase1_encryption_algorithms | Phase 1 encryption algorithms for tunnel 2. | `list(string)` | `[]` | no |
+  | vpn_connection_tunnel2_phase2_encryption_algorithms | Phase 2 encryption algorithms for tunnel 2. | `list(string)` | `[]` | no |
+  | vpn_connection_tunnel2_phase1_integrity_algorithms | Phase 1 integrity algorithms for tunnel 2. | `list(string)` | `[]` | no |
+  | vpn_connection_tunnel2_phase2_integrity_algorithms | Phase 2 integrity algorithms for tunnel 2. | `list(string)` | `[]` | no |
+  | vpn_connection_tunnel2_phase1_dh_group_numbers | Phase 1 DH groups for tunnel 2. | `list(string)` | `[]` | no |
+  | vpn_connection_tunnel2_phase2_dh_group_numbers | Phase 2 DH groups for tunnel 2. | `list(string)` | `[]` | no |
+  | vpn_connection_tunnel2_phase1_lifetime_seconds | Phase 1 IKE lifetime (seconds) for tunnel 2. | `string` | `"28800"` | no |
+  | vpn_connection_tunnel2_phase2_lifetime_seconds | Phase 2 lifetime (seconds) for tunnel 2. | `string` | `"3600"` | no |
+  | vpn_connection_tunnel2_preshared_key | Preshared key for tunnel 2. | `string` | `null` | no |
+  | vpn_connection_tunnel2_startup_action | Tunnel 2 startup action (`add` or `start`). | `string` | `"add"` | no |
+  | vpn_connection_tunnel2_cloudwatch_log_enabled | Enable CloudWatch logging for tunnel 2. | `bool` | `false` | no |
+  | vpn_connection_tunnel2_cloudwatch_log_output_format | Log format for tunnel 2 (`json` or `text`). | `string` | `"json"` | no |
+  | vpc_routes | Wrapper-only: per VPN entry, map of `vpc_parameter.route_tables` keys to `destination_cidr_block` / `destination_cidr` lists; creates root `aws_route.vpn` to the VGW. | `map` | `{}` | no |
+  | tags | Tags for this VPC and its resources. | `map` | `{}` |

@@ -14,7 +14,7 @@ variable "vpc_parameter" {
 
 variable "tgw_parameter" {
   type        = any
-  description = "TGW wrapper outputs (e.g. transit_gateway map) for VPN attachment"
+  description = "TGW wrapper outputs to configure the VPN module"
   default     = {}
 }
 

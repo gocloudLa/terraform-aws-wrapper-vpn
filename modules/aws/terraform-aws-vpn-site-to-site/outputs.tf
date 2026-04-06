@@ -1,5 +1,5 @@
 output "virtual_private_gateway_id" {
-  value = length(aws_vpn_gateway.this) > 0 ? aws_vpn_gateway.this[0].id : null
+  value = try(aws_vpn_gateway.this[0].id, var.virtual_private_gateway_id, null)
 }
 
 
