@@ -101,8 +101,8 @@ module "wrapper_vpn" {
         remote_ipv4_network_cidr = "10.16.0.0/12"
 
         # On-prem prefix toward the VPN attachment in the TGW route table (one entry per CIDR).
-        static_routes_only = true
-        static_routes_destinations     = ["10.60.0.0/16"]
+        static_routes_only         = true
+        static_routes_destinations = ["10.60.0.0/16"]
 
         route_table_keys = []
 
