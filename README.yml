@@ -1,4 +1,4 @@
-module_name: Terraform Site-to-Site VPN Networking Module
+module_name: "Terraform VPN Module"
 module_description: The Terraform Wrapper for Site-to-Site VPN simplifies AWS networking integration (Customer Gateway / Virtual Private Gateway or Transit Gateway attachment / VPN connection / static routes / optional TGW static routes / VPC route propagation where VGW is used / tunnel options / etc.) alongside the VPC and TGW wrappers.
 module_badges:
   - url: "https://github.com/gocloudLa/terraform-aws-wrapper-vpn/releases/latest"
@@ -80,6 +80,7 @@ quick_start: |
           tunnel2_cloudwatch_log_enabled = true
         }
       }
+  }
   ```
 features:
   - icon: 🛣️
