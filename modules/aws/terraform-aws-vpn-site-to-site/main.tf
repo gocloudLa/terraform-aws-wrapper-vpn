@@ -41,17 +41,29 @@ resource "aws_vpn_connection" "this" {
   vpn_gateway_id     = try(aws_vpn_gateway.this[0].id, var.virtual_private_gateway_id, null)
   transit_gateway_id = local.transit_gateway_enabled ? var.transit_gateway_id : null
 
-  customer_gateway_id      = var.customer_gateway_id != null ? var.customer_gateway_id : aws_customer_gateway.this[0].id
-  type                     = "ipsec.1"
-  static_routes_only       = var.vpn_connection_static_routes_only
-  local_ipv4_network_cidr  = var.vpn_connection_local_ipv4_network_cidr
-  remote_ipv4_network_cidr = var.vpn_connection_remote_ipv4_network_cidr
+  customer_gateway_id                     = var.customer_gateway_id != null ? var.customer_gateway_id : aws_customer_gateway.this[0].id
+  type                                    = "ipsec.1"
+  static_routes_only                      = var.vpn_connection_static_routes_only
+  enable_acceleration                     = var.vpn_connection_enable_acceleration
+  local_ipv4_network_cidr                 = var.vpn_connection_local_ipv4_network_cidr
+  local_ipv6_network_cidr                 = var.vpn_connection_local_ipv6_network_cidr
+  outside_ip_address_type                 = var.vpn_connection_outside_ip_address_type
+  remote_ipv4_network_cidr                = var.vpn_connection_remote_ipv4_network_cidr
+  remote_ipv6_network_cidr                = var.vpn_connection_remote_ipv6_network_cidr
+  # transport_transit_gateway_attachment_id = var.vpn_connection_transport_transit_gateway_attachment_id
+  tunnel_inside_ip_version                = var.vpn_connection_tunnel_inside_ip_version
 
-  tunnel1_dpd_timeout_action = var.vpn_connection_tunnel1_dpd_timeout_action
-  tunnel1_ike_versions       = var.vpn_connection_tunnel1_ike_versions
-  tunnel1_inside_cidr        = var.vpn_connection_tunnel1_inside_cidr
-  tunnel1_preshared_key      = var.vpn_connection_tunnel1_preshared_key
-  tunnel1_startup_action     = var.vpn_connection_tunnel1_startup_action
+  tunnel1_dpd_timeout_action              = var.vpn_connection_tunnel1_dpd_timeout_action
+  tunnel1_dpd_timeout_seconds             = var.vpn_connection_tunnel1_dpd_timeout_seconds
+  tunnel1_ike_versions                    = var.vpn_connection_tunnel1_ike_versions
+  tunnel1_inside_cidr                     = var.vpn_connection_tunnel1_inside_cidr
+  tunnel1_inside_ipv6_cidr                = var.vpn_connection_tunnel1_inside_ipv6_cidr
+  tunnel1_enable_tunnel_lifecycle_control = var.vpn_connection_tunnel1_enable_tunnel_lifecycle_control
+  tunnel1_rekey_fuzz_percentage           = var.vpn_connection_tunnel1_rekey_fuzz_percentage
+  tunnel1_replay_window_size              = var.vpn_connection_tunnel1_replay_window_size
+  tunnel1_rekey_margin_time_seconds       = var.vpn_connection_tunnel1_rekey_margin_time_seconds
+  tunnel1_preshared_key                   = var.vpn_connection_tunnel1_preshared_key
+  tunnel1_startup_action                  = var.vpn_connection_tunnel1_startup_action
 
   tunnel1_phase1_dh_group_numbers      = var.vpn_connection_tunnel1_phase1_dh_group_numbers
   tunnel1_phase2_dh_group_numbers      = var.vpn_connection_tunnel1_phase2_dh_group_numbers
@@ -70,11 +82,17 @@ resource "aws_vpn_connection" "this" {
     }
   }
 
-  tunnel2_dpd_timeout_action = var.vpn_connection_tunnel2_dpd_timeout_action
-  tunnel2_ike_versions       = var.vpn_connection_tunnel2_ike_versions
-  tunnel2_inside_cidr        = var.vpn_connection_tunnel2_inside_cidr
-  tunnel2_preshared_key      = var.vpn_connection_tunnel2_preshared_key
-  tunnel2_startup_action     = var.vpn_connection_tunnel2_startup_action
+  tunnel2_dpd_timeout_action              = var.vpn_connection_tunnel2_dpd_timeout_action
+  tunnel2_dpd_timeout_seconds             = var.vpn_connection_tunnel2_dpd_timeout_seconds
+  tunnel2_ike_versions                    = var.vpn_connection_tunnel2_ike_versions
+  tunnel2_inside_cidr                     = var.vpn_connection_tunnel2_inside_cidr
+  tunnel2_inside_ipv6_cidr                = var.vpn_connection_tunnel2_inside_ipv6_cidr
+  tunnel2_enable_tunnel_lifecycle_control = var.vpn_connection_tunnel2_enable_tunnel_lifecycle_control
+  tunnel2_rekey_fuzz_percentage           = var.vpn_connection_tunnel2_rekey_fuzz_percentage
+  tunnel2_replay_window_size              = var.vpn_connection_tunnel2_replay_window_size
+  tunnel2_rekey_margin_time_seconds       = var.vpn_connection_tunnel2_rekey_margin_time_seconds
+  tunnel2_preshared_key                   = var.vpn_connection_tunnel2_preshared_key
+  tunnel2_startup_action                  = var.vpn_connection_tunnel2_startup_action
 
   tunnel2_phase1_dh_group_numbers      = var.vpn_connection_tunnel2_phase1_dh_group_numbers
   tunnel2_phase2_dh_group_numbers      = var.vpn_connection_tunnel2_phase2_dh_group_numbers

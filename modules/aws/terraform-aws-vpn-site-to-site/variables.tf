@@ -77,16 +77,47 @@ variable "vpn_connection_static_routes_destinations" {
   nullable    = false
 }
 
+variable "vpn_connection_enable_acceleration" {
+  type        = bool
+  description = "Indicates whether acceleration is enabled for the VPN connection."
+  default     = false
+  nullable    = false
+}
+
 variable "vpn_connection_local_ipv4_network_cidr" {
   type        = string
   description = "The IPv4 CIDR on the Customer Gateway (on-premises) side of the VPN connection"
   default     = "0.0.0.0/0"
 }
 
+variable "vpn_connection_local_ipv6_network_cidr" {
+  type        = string
+  description = "The IPv6 CIDR on the customer gateway side of the VPN connection."
+  default     = null
+}
+
+variable "vpn_connection_outside_ip_address_type" {
+  type        = string
+  description = "The outside IP address type for the VPN connection."
+  default     = null
+}
+
 variable "vpn_connection_remote_ipv4_network_cidr" {
   type        = string
   description = "The IPv4 CIDR on the AWS side of the VPN connection"
   default     = "0.0.0.0/0"
+}
+
+variable "vpn_connection_remote_ipv6_network_cidr" {
+  type        = string
+  description = "The IPv6 CIDR on the AWS side of the VPN connection."
+  default     = null
+}
+
+variable "vpn_connection_tunnel_inside_ip_version" {
+  type        = string
+  description = "Indicates whether tunnel inside addresses use IPv4 or IPv6."
+  default     = null
 }
 
 variable "vpn_connection_log_retention_in_days" {
@@ -103,6 +134,12 @@ variable "vpn_connection_tunnel1_dpd_timeout_action" {
   nullable    = false
 }
 
+variable "vpn_connection_tunnel1_dpd_timeout_seconds" {
+  type        = number
+  description = "The number of seconds after which DPD timeout occurs for the first VPN tunnel."
+  default     = null
+}
+
 variable "vpn_connection_tunnel1_ike_versions" {
   type        = list(string)
   description = "The IKE versions that are permitted for the first VPN tunnel. Valid values are ikev1 | ikev2"
@@ -113,6 +150,36 @@ variable "vpn_connection_tunnel1_ike_versions" {
 variable "vpn_connection_tunnel1_inside_cidr" {
   type        = string
   description = "The CIDR block of the inside IP addresses for the first VPN tunnel"
+  default     = null
+}
+
+variable "vpn_connection_tunnel1_inside_ipv6_cidr" {
+  type        = string
+  description = "The IPv6 CIDR block of inside IP addresses for the first VPN tunnel."
+  default     = null
+}
+
+variable "vpn_connection_tunnel1_enable_tunnel_lifecycle_control" {
+  type        = bool
+  description = "Enable tunnel endpoint lifecycle control for tunnel 1."
+  default     = null
+}
+
+variable "vpn_connection_tunnel1_rekey_fuzz_percentage" {
+  type        = number
+  description = "The percentage of the rekey window that is randomized for tunnel 1."
+  default     = null
+}
+
+variable "vpn_connection_tunnel1_replay_window_size" {
+  type        = number
+  description = "The number of packets in the replay window for tunnel 1."
+  default     = null
+}
+
+variable "vpn_connection_tunnel1_rekey_margin_time_seconds" {
+  type        = number
+  description = "The margin time, in seconds, before the rekey event for tunnel 1."
   default     = null
 }
 
@@ -206,6 +273,12 @@ variable "vpn_connection_tunnel2_dpd_timeout_action" {
   nullable    = false
 }
 
+variable "vpn_connection_tunnel2_dpd_timeout_seconds" {
+  type        = number
+  description = "The number of seconds after which DPD timeout occurs for the second VPN tunnel."
+  default     = null
+}
+
 variable "vpn_connection_tunnel2_ike_versions" {
   type        = list(string)
   description = "The IKE versions that are permitted for the second VPN tunnel. Valid values are ikev1 | ikev2"
@@ -216,6 +289,36 @@ variable "vpn_connection_tunnel2_ike_versions" {
 variable "vpn_connection_tunnel2_inside_cidr" {
   type        = string
   description = "The CIDR block of the inside IP addresses for the second VPN tunnel"
+  default     = null
+}
+
+variable "vpn_connection_tunnel2_inside_ipv6_cidr" {
+  type        = string
+  description = "The IPv6 CIDR block of inside IP addresses for the second VPN tunnel."
+  default     = null
+}
+
+variable "vpn_connection_tunnel2_enable_tunnel_lifecycle_control" {
+  type        = bool
+  description = "Enable tunnel endpoint lifecycle control for tunnel 2."
+  default     = null
+}
+
+variable "vpn_connection_tunnel2_rekey_fuzz_percentage" {
+  type        = number
+  description = "The percentage of the rekey window that is randomized for tunnel 2."
+  default     = null
+}
+
+variable "vpn_connection_tunnel2_replay_window_size" {
+  type        = number
+  description = "The number of packets in the replay window for tunnel 2."
+  default     = null
+}
+
+variable "vpn_connection_tunnel2_rekey_margin_time_seconds" {
+  type        = number
+  description = "The margin time, in seconds, before the rekey event for tunnel 2."
   default     = null
 }
 
