@@ -116,16 +116,16 @@ module "vpn" {
   transit_gateway_routes         = each.value.transit_gateway_routes
   # vpn_connection_transport_transit_gateway_attachment_id = each.value.vpn_connection_transport_transit_gateway_attachment_id
 
-  vpn_connection_static_routes_only                      = each.value.vpn_connection_static_routes_only
-  vpn_connection_static_routes_destinations              = each.value.vpn_connection_static_routes_destinations
-  vpn_connection_enable_acceleration                     = each.value.vpn_connection_enable_acceleration
-  vpn_connection_local_ipv4_network_cidr                 = each.value.vpn_connection_local_ipv4_network_cidr
-  vpn_connection_local_ipv6_network_cidr                 = each.value.vpn_connection_local_ipv6_network_cidr
-  vpn_connection_outside_ip_address_type                 = each.value.vpn_connection_outside_ip_address_type
-  vpn_connection_remote_ipv4_network_cidr                = each.value.vpn_connection_remote_ipv4_network_cidr
-  vpn_connection_remote_ipv6_network_cidr                = each.value.vpn_connection_remote_ipv6_network_cidr
-  vpn_connection_tunnel_inside_ip_version                = each.value.vpn_connection_tunnel_inside_ip_version
-  vpn_connection_log_retention_in_days                   = each.value.vpn_connection_log_retention_in_days
+  vpn_connection_static_routes_only         = each.value.vpn_connection_static_routes_only
+  vpn_connection_static_routes_destinations = each.value.vpn_connection_static_routes_destinations
+  vpn_connection_enable_acceleration        = each.value.vpn_connection_enable_acceleration
+  vpn_connection_local_ipv4_network_cidr    = each.value.vpn_connection_local_ipv4_network_cidr
+  vpn_connection_local_ipv6_network_cidr    = each.value.vpn_connection_local_ipv6_network_cidr
+  vpn_connection_outside_ip_address_type    = each.value.vpn_connection_outside_ip_address_type
+  vpn_connection_remote_ipv4_network_cidr   = each.value.vpn_connection_remote_ipv4_network_cidr
+  vpn_connection_remote_ipv6_network_cidr   = each.value.vpn_connection_remote_ipv6_network_cidr
+  vpn_connection_tunnel_inside_ip_version   = each.value.vpn_connection_tunnel_inside_ip_version
+  vpn_connection_log_retention_in_days      = each.value.vpn_connection_log_retention_in_days
 
   vpn_connection_tunnel1_dpd_timeout_action              = each.value.vpn_connection_tunnel1_dpd_timeout_action
   vpn_connection_tunnel1_dpd_timeout_seconds             = each.value.vpn_connection_tunnel1_dpd_timeout_seconds

@@ -41,17 +41,17 @@ resource "aws_vpn_connection" "this" {
   vpn_gateway_id     = try(aws_vpn_gateway.this[0].id, var.virtual_private_gateway_id, null)
   transit_gateway_id = local.transit_gateway_enabled ? var.transit_gateway_id : null
 
-  customer_gateway_id                     = var.customer_gateway_id != null ? var.customer_gateway_id : aws_customer_gateway.this[0].id
-  type                                    = "ipsec.1"
-  static_routes_only                      = var.vpn_connection_static_routes_only
-  enable_acceleration                     = var.vpn_connection_enable_acceleration
-  local_ipv4_network_cidr                 = var.vpn_connection_local_ipv4_network_cidr
-  local_ipv6_network_cidr                 = var.vpn_connection_local_ipv6_network_cidr
-  outside_ip_address_type                 = var.vpn_connection_outside_ip_address_type
-  remote_ipv4_network_cidr                = var.vpn_connection_remote_ipv4_network_cidr
-  remote_ipv6_network_cidr                = var.vpn_connection_remote_ipv6_network_cidr
+  customer_gateway_id      = var.customer_gateway_id != null ? var.customer_gateway_id : aws_customer_gateway.this[0].id
+  type                     = "ipsec.1"
+  static_routes_only       = var.vpn_connection_static_routes_only
+  enable_acceleration      = var.vpn_connection_enable_acceleration
+  local_ipv4_network_cidr  = var.vpn_connection_local_ipv4_network_cidr
+  local_ipv6_network_cidr  = var.vpn_connection_local_ipv6_network_cidr
+  outside_ip_address_type  = var.vpn_connection_outside_ip_address_type
+  remote_ipv4_network_cidr = var.vpn_connection_remote_ipv4_network_cidr
+  remote_ipv6_network_cidr = var.vpn_connection_remote_ipv6_network_cidr
   # transport_transit_gateway_attachment_id = var.vpn_connection_transport_transit_gateway_attachment_id
-  tunnel_inside_ip_version                = var.vpn_connection_tunnel_inside_ip_version
+  tunnel_inside_ip_version = var.vpn_connection_tunnel_inside_ip_version
 
   tunnel1_dpd_timeout_action              = var.vpn_connection_tunnel1_dpd_timeout_action
   tunnel1_dpd_timeout_seconds             = var.vpn_connection_tunnel1_dpd_timeout_seconds
