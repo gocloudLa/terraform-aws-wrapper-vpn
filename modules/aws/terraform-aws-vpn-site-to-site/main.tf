@@ -152,6 +152,23 @@ resource "aws_ec2_tag" "transit_gateway_attachment" {
   value       = each.value
 }
 
+# Each IPsec tunnel is a vpn-tunnel resource. Its id is the outside IP.
+resource "aws_ec2_tag" "tunnel1" {
+  for_each = var.create_vpn_connection ? var.vpn_connection_tunnel1_tags : {}
+
+  resource_id = aws_vpn_connection.this[0].tunnel1_address
+  key         = each.key
+  value       = each.value
+}
+
+resource "aws_ec2_tag" "tunnel2" {
+  for_each = var.create_vpn_connection ? var.vpn_connection_tunnel2_tags : {}
+
+  resource_id = aws_vpn_connection.this[0].tunnel2_address
+  key         = each.key
+  value       = each.value
+}
+
 # https://registry.terraform.io/providers/hashicorp/aws/latest/docs/resources/ec2_transit_gateway_route
 resource "aws_ec2_transit_gateway_route" "this" {
   for_each = var.create_vpn_connection && local.transit_gateway_enabled && local.transit_gateway_route_table_configured ? var.transit_gateway_routes : {}

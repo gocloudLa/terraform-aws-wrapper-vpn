@@ -411,6 +411,20 @@ variable "vpn_connection_tunnel2_cloudwatch_log_output_format" {
   nullable    = false
 }
 
+variable "vpn_connection_tunnel1_tags" {
+  type        = map(string)
+  description = "Tags for VPN tunnel 1. Applied with aws_ec2_tag on the tunnel outside IP."
+  default     = {}
+  nullable    = false
+}
+
+variable "vpn_connection_tunnel2_tags" {
+  type        = map(string)
+  description = "Tags for VPN tunnel 2. Applied with aws_ec2_tag on the tunnel outside IP."
+  default     = {}
+  nullable    = false
+}
+
 /*----------------------------------------------------------------------*/
 /* Transit Gateway | Variable Definition                                */
 /*----------------------------------------------------------------------*/

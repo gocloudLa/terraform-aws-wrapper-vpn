@@ -91,6 +91,16 @@ locals {
         vpn_connection_tunnel2_startup_action                  = try(vpn_config.vpn_connection.tunnel2_startup_action, "add")
         vpn_connection_tunnel2_cloudwatch_log_enabled          = try(vpn_config.vpn_connection.tunnel2_cloudwatch_log_enabled, false)
         vpn_connection_tunnel2_cloudwatch_log_output_format    = try(vpn_config.vpn_connection.tunnel2_cloudwatch_log_output_format, "json")
+        vpn_connection_tunnel1_tags = merge(
+          local.common_tags,
+          { Name = "${local.common_name}-${vpn_key}-tunnel1" },
+          try(vpn_config.vpn_connection.tunnel1_tags, {})
+        )
+        vpn_connection_tunnel2_tags = merge(
+          local.common_tags,
+          { Name = "${local.common_name}-${vpn_key}-tunnel2" },
+          try(vpn_config.vpn_connection.tunnel2_tags, {})
+        )
 
         tags = merge(local.common_tags, { Name = "${local.common_name}-${vpn_key}" })
       }
@@ -212,6 +222,8 @@ module "vpn" {
   vpn_connection_tunnel2_startup_action                  = each.value.vpn_connection_tunnel2_startup_action
   vpn_connection_tunnel2_cloudwatch_log_enabled          = each.value.vpn_connection_tunnel2_cloudwatch_log_enabled
   vpn_connection_tunnel2_cloudwatch_log_output_format    = each.value.vpn_connection_tunnel2_cloudwatch_log_output_format
+  vpn_connection_tunnel1_tags                            = each.value.vpn_connection_tunnel1_tags
+  vpn_connection_tunnel2_tags                            = each.value.vpn_connection_tunnel2_tags
 
   tags = merge(lookup(each.value, "tags", local.common_tags), { Name = "${local.common_name}-${each.key}" })
 
