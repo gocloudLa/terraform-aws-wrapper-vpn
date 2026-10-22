@@ -14,6 +14,8 @@ The Terraform Wrapper for Site-to-Site VPN simplifies AWS networking integration
 
 - 🌐 [Transit Gateway attachment (TGW mode)](#transit-gateway-attachment-(tgw-mode)) - VPN terminates on the TGW; set `tgw`, `virtual_private_gateway = null`, and `route_table_keys = []`
 
+- 🔁 [Reuse an existing customer gateway](#reuse-an-existing-customer-gateway) - Attach a VPN to a customer gateway that already exists, by ID or by another `vpn_parameters` key
+
 
 
 
@@ -164,6 +166,44 @@ vpn_parameters = {
 </details>
 
 
+### Reuse an existing customer gateway
+Set **`customer_gateway.customer_gateway_id`** to an existing `cgw-...` ID and this entry skips `aws_customer_gateway`. Set **`customer_gateway.key`** to another key in the same `vpn_parameters` map to attach this VPN to the gateway that entry creates. An explicit ID wins when both are set. The shared gateway keeps the public IP and BGP ASN of the gateway that was created; a second connection cannot change them.
+
+
+<details><summary>Configuration Code</summary>
+
+```hcl
+vpn_parameters = {
+  "vpn-01" = {
+    tgw                     = "tgw-01"
+    virtual_private_gateway = null
+    customer_gateway = {
+      ip_address = "203.0.113.10"
+      bgp_asn    = 65010
+    }
+    vpn_connection = {
+      static_routes_only = false
+      route_table_keys   = []
+    }
+  }
+  "central-1" = {
+    tgw                     = "tgw-01"
+    virtual_private_gateway = null
+    customer_gateway = {
+      key = "vpn-01"
+    }
+    vpn_connection = {
+      static_routes_only = false
+      route_table_keys   = []
+    }
+  }
+}
+```
+
+
+</details>
+
+
 
 
 ## 📑 Inputs
@@ -175,7 +215,9 @@ vpn_parameters = {
 | virtual_private_gateway_id                          | ID of an existing VGW; if null the submodule creates one when using VPC mode.                                                                                                   | `string`       | `null`        | no       |
 | customer_gateway_device_name                        | Device name of the Customer Gateway.                                                                                                                                            | `string`       | `null`        | no       |
 | customer_gateway_bgp_asn                            | BGP ASN for the Customer Gateway.                                                                                                                                               | `number`       | `65000`       | no       |
-| customer_gateway_ip_address                         | Public IP of the customer gateway (Internet-routable).                                                                                                                          | `string`       | `null`        | no       |
+| customer_gateway_ip_address                         | Public IP of the customer gateway (Internet-routable). Required when this entry creates the gateway.                                                                            | `string`       | `null`        | no       |
+| customer_gateway.customer_gateway_id                | Existing customer gateway ID (`cgw-...`). When set, this entry does not create a customer gateway.                                                                              | `string`       | `null`        | no       |
+| customer_gateway.key                                | Other `vpn_parameters` key whose customer gateway this entry reuses. Ignored when `customer_gateway_id` is set.                                                                  | `string`       | `null`        | no       |
 | route_table_ids                                     | Route table IDs for VGW route propagation.                                                                                                                                      | `list(string)` | `[]`          | no       |
 | transit_gateway_id                                  | Transit Gateway ID when the VPN attaches to a TGW instead of a VGW.                                                                                                             | `string`       | `null`        | no       |
 | transit_gateway_route_table_id                      | TGW route table for static routes / optional TGW routes.                                                                                                                        | `string`       | `null`        | no       |
@@ -231,6 +273,7 @@ vpn_parameters = {
 - **Route tables (VGW)**: `vpn_connection.route_table_keys` is required (list; use `[]` for TGW-only VPNs). Each key must exist in `vpc_parameter.route_tables` or the plan fails. Enables `aws_vpn_gateway_route_propagation`. Optional **`vpc_routes`** is `{ <vpc_key> = { <suffix> = { destination_cidr_block / destination_cidr } } }` and resolves route tables as `"<vpc_key>-<suffix>"` in `vpc_parameter.route_tables`; avoid duplicating CIDRs already installed via propagation.
 - **Submodule reference**: Behaviour and resource wiring are implemented in `modules/aws/terraform-aws-vpn-site-to-site` (variables mirror AWS resources).
 - **Client VPN**: Placeholder sections in `main.tf` / `variables.tf` are not implemented yet.
+- **Existing customer gateway**: `customer_gateway.customer_gateway_id` or `customer_gateway.key` attaches the VPN without creating a gateway. `key` must be a different entry in the same `vpn_parameters` map, and that entry must create the gateway or pass its own ID. Pointing `customer_gateway_id` at the gateway this same entry already manages will plan a destroy of that gateway.
 
 
 

@@ -7,6 +7,12 @@ variable "customer_gateway_id" {
   default     = null
 }
 
+variable "create_customer_gateway" {
+  type        = bool
+  description = "When false, reuse customer_gateway_id and do not create a customer gateway. Null derives this from customer_gateway_id == null. Set false when customer_gateway_id is only known after apply."
+  default     = null
+}
+
 variable "customer_gateway_device_name" {
   type        = string
   description = "The Device Name of the Customer Gateway"

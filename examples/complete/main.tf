@@ -33,7 +33,8 @@ module "wrapper_vpn" {
         # bgp_asn = 65000
         # bgp_asn_extended = null
         # certificate_arn = null
-        # customer_gateway_id = null
+        # customer_gateway_id = null # existing cgw-... ; do not create a customer gateway
+        # key                  = null # other vpn_parameters key whose customer gateway this entry reuses
       }
 
       # Tunnel resource settings; if omitted, null/default values apply

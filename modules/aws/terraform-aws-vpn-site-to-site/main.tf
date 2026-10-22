@@ -1,6 +1,6 @@
 # https://registry.terraform.io/providers/hashicorp/aws/latest/docs/resources/customer_gateway
 resource "aws_customer_gateway" "this" {
-  count = var.customer_gateway_id == null ? 1 : 0
+  count = local.create_customer_gateway ? 1 : 0
 
   device_name      = var.customer_gateway_device_name == "" ? "${var.tags.Name}" : var.customer_gateway_device_name
   bgp_asn          = var.customer_gateway_bgp_asn <= 2147483647 ? var.customer_gateway_bgp_asn : null
@@ -41,7 +41,7 @@ resource "aws_vpn_connection" "this" {
   vpn_gateway_id     = try(aws_vpn_gateway.this[0].id, var.virtual_private_gateway_id, null)
   transit_gateway_id = local.transit_gateway_enabled ? var.transit_gateway_id : null
 
-  customer_gateway_id      = var.customer_gateway_id != null ? var.customer_gateway_id : aws_customer_gateway.this[0].id
+  customer_gateway_id      = local.create_customer_gateway ? aws_customer_gateway.this[0].id : var.customer_gateway_id
   type                     = "ipsec.1"
   static_routes_only       = var.vpn_connection_static_routes_only
   enable_acceleration      = var.vpn_connection_enable_acceleration
