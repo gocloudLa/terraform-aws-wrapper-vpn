@@ -7,6 +7,12 @@ variable "customer_gateway_id" {
   default     = null
 }
 
+variable "create_customer_gateway" {
+  type        = bool
+  description = "When false, reuse customer_gateway_id and do not create a customer gateway. Null derives this from customer_gateway_id == null. Set false when customer_gateway_id is only known after apply."
+  default     = null
+}
+
 variable "customer_gateway_device_name" {
   type        = string
   description = "The Device Name of the Customer Gateway"
@@ -402,6 +408,20 @@ variable "vpn_connection_tunnel2_cloudwatch_log_output_format" {
   type        = string
   description = "Set log format for the tunnel. Default format is json. Possible values are `json` and `text`"
   default     = "json"
+  nullable    = false
+}
+
+variable "vpn_connection_tunnel1_tags" {
+  type        = map(string)
+  description = "Tags for VPN tunnel 1. Applied with aws_ec2_tag on the tunnel outside IP."
+  default     = {}
+  nullable    = false
+}
+
+variable "vpn_connection_tunnel2_tags" {
+  type        = map(string)
+  description = "Tags for VPN tunnel 2. Applied with aws_ec2_tag on the tunnel outside IP."
+  default     = {}
   nullable    = false
 }
 

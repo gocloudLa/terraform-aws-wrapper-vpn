@@ -27,6 +27,10 @@ locals {
         ]
         vpn_connection_transport_transit_gateway_attachment_id = try(vpn_config.vpn_connection.transport_transit_gateway_attachment_id, null)
 
+        # customer_gateway_id: existing cgw-... ID. customer_gateway_key: another vpn_parameters key in this module.
+        # An explicit ID wins. Otherwise the connection uses the gateway created by that key.
+        customer_gateway_id               = try(vpn_config.customer_gateway.customer_gateway_id, null)
+        customer_gateway_key              = try(vpn_config.customer_gateway.key, null)
         customer_gateway_ip_address       = try(vpn_config.customer_gateway.ip_address, null)
         customer_gateway_device_name      = try(vpn_config.customer_gateway.device_name, null)
         customer_gateway_bgp_asn          = try(vpn_config.customer_gateway.bgp_asn, 65000)
@@ -87,12 +91,58 @@ locals {
         vpn_connection_tunnel2_startup_action                  = try(vpn_config.vpn_connection.tunnel2_startup_action, "add")
         vpn_connection_tunnel2_cloudwatch_log_enabled          = try(vpn_config.vpn_connection.tunnel2_cloudwatch_log_enabled, false)
         vpn_connection_tunnel2_cloudwatch_log_output_format    = try(vpn_config.vpn_connection.tunnel2_cloudwatch_log_output_format, "json")
+        vpn_connection_tunnel1_tags = merge(
+          local.common_tags,
+          { Name = "${local.common_name}-${vpn_key}-tunnel1" },
+          try(vpn_config.vpn_connection.tunnel1_tags, {})
+        )
+        vpn_connection_tunnel2_tags = merge(
+          local.common_tags,
+          { Name = "${local.common_name}-${vpn_key}-tunnel2" },
+          try(vpn_config.vpn_connection.tunnel2_tags, {})
+        )
 
         tags = merge(local.common_tags, { Name = "${local.common_name}-${vpn_key}" })
       }
     } if((length(try(vpn_config, {})) > 0))
   ]
   create_vpn_connection = merge(flatten(local.create_vpn_connection_tmp)...)
+
+  # key cannot read module.vpn[key] (that cycles). Resolve an explicit id from
+  # config, or look the referenced entry's gateway up by its IP and BGP ASN.
+  referenced_customer_gateways = {
+    for key, value in local.create_vpn_connection : key => {
+      ip_address = local.create_vpn_connection[value.customer_gateway_key].customer_gateway_ip_address
+      bgp_asn    = local.create_vpn_connection[value.customer_gateway_key].customer_gateway_bgp_asn
+    }
+    if(
+      value.customer_gateway_key != null &&
+      value.customer_gateway_id == null &&
+      contains(keys(local.create_vpn_connection), value.customer_gateway_key) &&
+      local.create_vpn_connection[value.customer_gateway_key].customer_gateway_key == null &&
+      local.create_vpn_connection[value.customer_gateway_key].customer_gateway_id == null &&
+      local.create_vpn_connection[value.customer_gateway_key].customer_gateway_ip_address != null
+    )
+  }
+
+  customer_gateway_ids = merge(
+    {
+      for key, value in local.create_vpn_connection : key => value.customer_gateway_id
+      if value.customer_gateway_id != null
+    },
+    {
+      for key, value in local.create_vpn_connection : key => local.create_vpn_connection[value.customer_gateway_key].customer_gateway_id
+      if(
+        value.customer_gateway_key != null &&
+        value.customer_gateway_id == null &&
+        contains(keys(local.create_vpn_connection), value.customer_gateway_key) &&
+        local.create_vpn_connection[value.customer_gateway_key].customer_gateway_id != null
+      )
+    },
+    {
+      for key, value in data.aws_customer_gateway.referenced : key => value.id
+    }
+  )
 }
 
 module "vpn" {
@@ -106,6 +156,8 @@ module "vpn" {
   vpc_id                       = each.value.vpc_id
   vpn_gateway_amazon_side_asn  = each.value.vpn_gateway_amazon_side_asn
   virtual_private_gateway_id   = each.value.virtual_private_gateway_id
+  create_customer_gateway      = each.value.customer_gateway_key == null && each.value.customer_gateway_id == null
+  customer_gateway_id          = lookup(local.customer_gateway_ids, each.key, null)
   customer_gateway_device_name = each.value.customer_gateway_device_name
   customer_gateway_bgp_asn     = each.value.customer_gateway_bgp_asn
   customer_gateway_ip_address  = each.value.customer_gateway_ip_address
@@ -170,13 +222,48 @@ module "vpn" {
   vpn_connection_tunnel2_startup_action                  = each.value.vpn_connection_tunnel2_startup_action
   vpn_connection_tunnel2_cloudwatch_log_enabled          = each.value.vpn_connection_tunnel2_cloudwatch_log_enabled
   vpn_connection_tunnel2_cloudwatch_log_output_format    = each.value.vpn_connection_tunnel2_cloudwatch_log_output_format
+  vpn_connection_tunnel1_tags                            = each.value.vpn_connection_tunnel1_tags
+  vpn_connection_tunnel2_tags                            = each.value.vpn_connection_tunnel2_tags
 
   tags = merge(lookup(each.value, "tags", local.common_tags), { Name = "${local.common_name}-${each.key}" })
 
 }
 
 
+resource "terraform_data" "customer_gateway_key" {
+  for_each = {
+    for key, value in local.create_vpn_connection : key => value
+    if value.customer_gateway_key != null && value.customer_gateway_id == null && (
+      !contains(keys(local.create_vpn_connection), value.customer_gateway_key) ||
+      value.customer_gateway_key == key ||
+      (
+        try(local.create_vpn_connection[value.customer_gateway_key].customer_gateway_id, null) == null &&
+        try(local.create_vpn_connection[value.customer_gateway_key].customer_gateway_ip_address, null) == null
+      ) ||
+      try(local.create_vpn_connection[value.customer_gateway_key].customer_gateway_key, null) != null
+    )
+  }
+
+  lifecycle {
+    precondition {
+      condition = (
+        contains(keys(local.create_vpn_connection), each.value.customer_gateway_key) &&
+        each.value.customer_gateway_key != each.key &&
+        try(local.create_vpn_connection[each.value.customer_gateway_key].customer_gateway_key, null) == null &&
+        (
+          try(local.create_vpn_connection[each.value.customer_gateway_key].customer_gateway_id, null) != null ||
+          try(local.create_vpn_connection[each.value.customer_gateway_key].customer_gateway_ip_address, null) != null
+        )
+      )
+      error_message = "customer_gateway.key \"${each.value.customer_gateway_key}\" on \"${each.key}\" must be another vpn_parameters entry that sets ip_address or customer_gateway_id."
+    }
+  }
+}
+
+
 locals {
+  vpns = module.vpn
+
   create_routes_tmp = [
     for vpn_key, vpn_config in var.vpn_parameters :
     [
@@ -192,7 +279,7 @@ locals {
               destination_cidr_block      = key
               destination_ipv6_cidr_block = null // to be supported with IPv6
               transit_gateway_id          = null
-              gateway_id                  = module.vpn[vpn_key].virtual_private_gateway_id
+              gateway_id                  = local.vpns[vpn_key].virtual_private_gateway_id
             }
           } if((length(lookup(vpn_config, "vpc_routes", {})) > 0))
         ]
