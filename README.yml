@@ -154,7 +154,7 @@ features:
     title: Reuse an existing customer gateway
     short_description: Attach a VPN to a customer gateway that already exists, by ID or by another `vpn_parameters` key
     long_description: |
-      Set **`customer_gateway.customer_gateway_id`** to an existing `cgw-...` ID and this entry skips `aws_customer_gateway`. Set **`customer_gateway.key`** to another key in the same `vpn_parameters` map to attach this VPN to the gateway that entry creates. An explicit ID wins when both are set. The shared gateway keeps the public IP and BGP ASN of the gateway that was created; a second connection cannot change them.
+      Set **`customer_gateway.customer_gateway_id`** to an existing `cgw-...` ID and this entry skips `aws_customer_gateway`. Set **`customer_gateway.key`** to another key in the same `vpn_parameters` map and this entry uses the gateway that entry defines (`ip_address` and `bgp_asn`, or that entry's `customer_gateway_id`) instead of creating one. Omit `key` and the entry creates the gateway from `ip_address`. An explicit ID wins when both are set. The shared gateway keeps the public IP and BGP ASN of the gateway that was created.
     examples:
       - title: Configuration Code
         code: |
@@ -193,7 +193,7 @@ important_notes: |
   - **Route tables (VGW)**: `vpn_connection.route_table_keys` is required (list; use `[]` for TGW-only VPNs). Each key must exist in `vpc_parameter.route_tables` or the plan fails. Enables `aws_vpn_gateway_route_propagation`. Optional **`vpc_routes`** is `{ <vpc_key> = { <suffix> = { destination_cidr_block / destination_cidr } } }` and resolves route tables as `"<vpc_key>-<suffix>"` in `vpc_parameter.route_tables`; avoid duplicating CIDRs already installed via propagation.
   - **Submodule reference**: Behaviour and resource wiring are implemented in `modules/aws/terraform-aws-vpn-site-to-site` (variables mirror AWS resources).
   - **Client VPN**: Placeholder sections in `main.tf` / `variables.tf` are not implemented yet.
-  - **Existing customer gateway**: `customer_gateway.customer_gateway_id` or `customer_gateway.key` attaches the VPN without creating a gateway. `key` must be a different entry in the same `vpn_parameters` map, and that entry must create the gateway or pass its own ID. Pointing `customer_gateway_id` at the gateway this same entry already manages will plan a destroy of that gateway.
+  - **Existing customer gateway**: `customer_gateway.key` must name another entry that sets `ip_address` or `customer_gateway_id`. The gateway is looked up in AWS by that IP and BGP ASN, so it must already exist when you plan. An entry with `key` does not create a gateway; an entry without `key` does. Changing which customer gateway a connection uses replaces the VPN connection.
 
 input_table: |
   | create_vpn_connection | If set to `true`, the VPN connection will be created. | `bool` | `true` | no |
