@@ -91,6 +91,8 @@ vpn_parameters = {
         tunnel2_preshared_key      = var.vpn_psk_tunnel2
         tunnel1_cloudwatch_log_enabled = true
         tunnel2_cloudwatch_log_enabled = true
+        tunnel1_tags                   = { Name = "example-vpn-tgw-tunnel1" }
+        tunnel2_tags                   = { Name = "example-vpn-tgw-tunnel2" }
       }
     }
 }
