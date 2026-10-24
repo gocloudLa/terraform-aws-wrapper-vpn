@@ -76,9 +76,12 @@ resource "aws_vpn_connection" "this" {
 
   tunnel1_log_options {
     cloudwatch_log_options {
-      log_enabled       = var.vpn_connection_tunnel1_cloudwatch_log_enabled
-      log_output_format = var.vpn_connection_tunnel1_cloudwatch_log_enabled ? var.vpn_connection_tunnel1_cloudwatch_log_output_format : null
-      log_group_arn     = var.vpn_connection_tunnel1_cloudwatch_log_enabled ? aws_cloudwatch_log_group.this[0].arn : null
+      log_enabled           = var.vpn_connection_tunnel1_cloudwatch_log_enabled
+      log_output_format     = var.vpn_connection_tunnel1_cloudwatch_log_enabled ? var.vpn_connection_tunnel1_cloudwatch_log_output_format : null
+      log_group_arn         = var.vpn_connection_tunnel1_cloudwatch_log_enabled ? aws_cloudwatch_log_group.this[0].arn : null
+      bgp_log_enabled       = var.vpn_connection_tunnel1_bgp_log_enabled
+      bgp_log_output_format = var.vpn_connection_tunnel1_bgp_log_enabled ? var.vpn_connection_tunnel1_bgp_log_output_format : null
+      bgp_log_group_arn     = var.vpn_connection_tunnel1_bgp_log_enabled ? aws_cloudwatch_log_group.this[0].arn : null
     }
   }
 
@@ -105,9 +108,12 @@ resource "aws_vpn_connection" "this" {
 
   tunnel2_log_options {
     cloudwatch_log_options {
-      log_enabled       = var.vpn_connection_tunnel2_cloudwatch_log_enabled
-      log_group_arn     = var.vpn_connection_tunnel2_cloudwatch_log_enabled ? aws_cloudwatch_log_group.this[0].arn : null
-      log_output_format = var.vpn_connection_tunnel2_cloudwatch_log_enabled ? var.vpn_connection_tunnel2_cloudwatch_log_output_format : null
+      log_enabled           = var.vpn_connection_tunnel2_cloudwatch_log_enabled
+      log_group_arn         = var.vpn_connection_tunnel2_cloudwatch_log_enabled ? aws_cloudwatch_log_group.this[0].arn : null
+      log_output_format     = var.vpn_connection_tunnel2_cloudwatch_log_enabled ? var.vpn_connection_tunnel2_cloudwatch_log_output_format : null
+      bgp_log_enabled       = var.vpn_connection_tunnel2_bgp_log_enabled
+      bgp_log_group_arn     = var.vpn_connection_tunnel2_bgp_log_enabled ? aws_cloudwatch_log_group.this[0].arn : null
+      bgp_log_output_format = var.vpn_connection_tunnel2_bgp_log_enabled ? var.vpn_connection_tunnel2_bgp_log_output_format : null
     }
   }
 

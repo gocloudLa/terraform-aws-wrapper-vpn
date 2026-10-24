@@ -272,6 +272,20 @@ variable "vpn_connection_tunnel1_cloudwatch_log_output_format" {
   nullable    = false
 }
 
+variable "vpn_connection_tunnel1_bgp_log_enabled" {
+  type        = bool
+  description = "Enable or disable BGP logging feature for the tunnel. Uses the same CloudWatch log group as tunnel logs"
+  default     = false
+  nullable    = false
+}
+
+variable "vpn_connection_tunnel1_bgp_log_output_format" {
+  type        = string
+  description = "Set BGP log format for the tunnel. Default format is json. Possible values are `json` and `text`"
+  default     = "json"
+  nullable    = false
+}
+
 variable "vpn_connection_tunnel2_dpd_timeout_action" {
   type        = string
   description = "The action to take after DPD timeout occurs for the second VPN tunnel. Specify restart to restart the IKE initiation. Specify clear to end the IKE session. Valid values are `clear` | `none` | `restart`"
@@ -407,6 +421,20 @@ variable "vpn_connection_tunnel2_cloudwatch_log_enabled" {
 variable "vpn_connection_tunnel2_cloudwatch_log_output_format" {
   type        = string
   description = "Set log format for the tunnel. Default format is json. Possible values are `json` and `text`"
+  default     = "json"
+  nullable    = false
+}
+
+variable "vpn_connection_tunnel2_bgp_log_enabled" {
+  type        = bool
+  description = "Enable or disable BGP logging feature for the tunnel. Uses the same CloudWatch log group as tunnel logs"
+  default     = false
+  nullable    = false
+}
+
+variable "vpn_connection_tunnel2_bgp_log_output_format" {
+  type        = string
+  description = "Set BGP log format for the tunnel. Default format is json. Possible values are `json` and `text`"
   default     = "json"
   nullable    = false
 }
