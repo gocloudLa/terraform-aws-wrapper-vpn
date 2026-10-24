@@ -18,9 +18,6 @@ The Terraform Wrapper for Site-to-Site VPN simplifies AWS networking integration
 
 - 📒 [BGP tunnel logs](#bgp-tunnel-logs) - Send BGP logs to the same CloudWatch log group as IKE tunnel logs
 
-- 🏷️ [Per-tunnel tags](#per-tunnel-tags) - Tag tunnel 1 and tunnel 2 independently via `vpn_connection.tunnel1_tags` / `tunnel2_tags`
-
-
 
 
 ## 🚀 Quick Start
@@ -52,7 +49,6 @@ vpn_parameters = {
         tunnel1_phase2_integrity_algorithms  = ["SHA2-256"]
         tunnel1_cloudwatch_log_enabled       = true
         tunnel1_bgp_log_enabled              = true
-        tunnel1_tags                         = { Name = "example-vpn-vpc-tunnel1" }
         tunnel2_ike_versions                 = ["ikev2"]
         tunnel2_startup_action               = "start"
         tunnel2_dpd_timeout_action           = "none"
@@ -64,7 +60,6 @@ vpn_parameters = {
         tunnel2_phase2_integrity_algorithms  = ["SHA2-256"]
         tunnel2_cloudwatch_log_enabled       = true
         tunnel2_bgp_log_enabled              = true
-        tunnel2_tags                         = { Name = "example-vpn-vpc-tunnel2" }
       }
       vpc_routes = {
         "networking" = {
@@ -97,8 +92,6 @@ vpn_parameters = {
         tunnel1_bgp_log_enabled        = true
         tunnel2_cloudwatch_log_enabled = true
         tunnel2_bgp_log_enabled        = true
-        tunnel1_tags                   = { Name = "example-vpn-tgw-tunnel1" }
-        tunnel2_tags                   = { Name = "example-vpn-tgw-tunnel2" }
       }
     }
 }
@@ -245,35 +238,6 @@ vpn_parameters = {
 </details>
 
 
-### Per-tunnel tags
-Each IPsec tunnel is a `vpn-tunnel` resource identified by its outside IP. The module applies `aws_ec2_tag` to `tunnel1_address` and `tunnel2_address`. Tags are the common tags, a default `Name` (`<common_name>-<vpn_key>-tunnel1` or `tunnel2`), then `vpn_connection.tunnel1_tags` / `tunnel2_tags`. A `Name` in those maps replaces the default.
-
-
-<details><summary>Configuration Code</summary>
-
-```hcl
-vpn_parameters = {
-  "vpn-01" = {
-    tgw                     = "tgw-01"
-    virtual_private_gateway = null
-    customer_gateway = {
-      ip_address = "203.0.113.10"
-    }
-    vpn_connection = {
-      route_table_keys = []
-      tunnel1_tags     = { Name = "example-vpn-01-t1" }
-      tunnel2_tags     = { Name = "example-vpn-01-t2" }
-    }
-  }
-}
-```
-
-
-</details>
-
-
-
-
 ## 📑 Inputs
 | Name                                                | Description                                                                                                                                                                     | Type           | Default       | Required |
 | --------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | -------------- | ------------- | -------- |
@@ -329,8 +293,6 @@ vpn_parameters = {
 | vpn_connection_tunnel2_cloudwatch_log_output_format | Log format for tunnel 2 (`json` or `text`).                                                                                                                                     | `string`       | `"json"`      | no       |
 | vpn_connection_tunnel2_bgp_log_enabled              | Enable BGP CloudWatch logging for tunnel 2. Uses the same log group as tunnel logs.                                                                                             | `bool`         | `false`       | no       |
 | vpn_connection_tunnel2_bgp_log_output_format        | BGP log format for tunnel 2 (`json` or `text`).                                                                                                                                 | `string`       | `"json"`      | no       |
-| vpn_connection.tunnel1_tags                         | Tags for tunnel 1. Merged over common tags. `Name` defaults to `<common_name>-<vpn_key>-tunnel1`.                                                                               | `map(string)`  | `{}`          | no       |
-| vpn_connection.tunnel2_tags                         | Tags for tunnel 2. `Name` defaults to `<common_name>-<vpn_key>-tunnel2`.                                                                                                        | `map(string)`  | `{}`          | no       |
 | vpc_routes                                          | Wrapper-only: `{ <vpc_key> = { <suffix> = { destination_cidr_block / destination_cidr } } }` → `vpc_parameter.route_tables["<vpc_key>-<suffix>"]`; root `aws_route.vpn` to VGW. | `map`          | `{}`          | no       |
 | tags                                                | Tags for this VPC and its resources.                                                                                                                                            | `map`          | `{}`          | no       |
 
@@ -346,7 +308,6 @@ vpn_parameters = {
 - **TGW key**: Use `tgw` matching a key in `tgw_parameter.transit_gateway` (same shape as `examples/complete/locals.tf`). Resolves `ec2_transit_gateway_id` and (unless overridden) route table from `ec2_transit_gateway_association_default_route_table_id` then `ec2_transit_gateway_route_table_id`. Override with `transit_gateway_id` / `transit_gateway_route_table_id` when needed.
 - **Route tables (VGW)**: `vpn_connection.route_table_keys` is required (list; use `[]` for TGW-only VPNs). Each key must exist in `vpc_parameter.route_tables` or the plan fails. Enables `aws_vpn_gateway_route_propagation`. Optional **`vpc_routes`** is `{ <vpc_key> = { <suffix> = { destination_cidr_block / destination_cidr } } }` and resolves route tables as `"<vpc_key>-<suffix>"` in `vpc_parameter.route_tables`; avoid duplicating CIDRs already installed via propagation.
 - **BGP logs**: `vpn_connection.tunnel1_bgp_log_enabled` and `tunnel2_bgp_log_enabled` send BGP logs to the same CloudWatch log group as IKE tunnel logs. Format defaults to `json`. Omit them and BGP logging stays off.
-- **Tunnel tags**: `vpn_connection.tunnel1_tags` and `tunnel2_tags` tag each IPsec tunnel through `aws_ec2_tag` on the tunnel outside IP. Omit them and the tunnel still receives common tags plus a default `Name`.
 - **Submodule reference**: Behaviour and resource wiring are implemented in `modules/aws/terraform-aws-vpn-site-to-site` (variables mirror AWS resources).
 - **Client VPN**: Placeholder sections in `main.tf` / `variables.tf` are not implemented yet.
 - **Existing customer gateway**: `customer_gateway.key` must name another entry that sets `ip_address` or `customer_gateway_id`. The gateway is looked up in AWS by that IP and BGP ASN, so it must already exist when you plan. An entry with `key` does not create a gateway; an entry without `key` does. Changing which customer gateway a connection uses replaces the VPN connection.

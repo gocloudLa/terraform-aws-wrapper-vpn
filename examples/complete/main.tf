@@ -74,9 +74,6 @@ module "wrapper_vpn" {
         tunnel2_phase2_integrity_algorithms  = ["SHA2-256"]
         tunnel2_cloudwatch_log_enabled       = true
         tunnel2_bgp_log_enabled              = true
-
-        tunnel1_tags = { Name = "example-vpn-vpc-tunnel1" }
-        tunnel2_tags = { Name = "example-vpn-vpc-tunnel2" }
       }
 
       vpc_routes = {
@@ -118,9 +115,6 @@ module "wrapper_vpn" {
         tunnel2_preshared_key          = "12345678" # local.secrets.vpn_preshared_key
         tunnel2_cloudwatch_log_enabled = true
         tunnel2_bgp_log_enabled        = true
-
-        tunnel1_tags = { Name = "example-vpn-tgw-tunnel1" }
-        tunnel2_tags = { Name = "example-vpn-tgw-tunnel2" }
       }
     }
   }
