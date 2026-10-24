@@ -16,6 +16,8 @@ The Terraform Wrapper for Site-to-Site VPN simplifies AWS networking integration
 
 - 🔁 [Reuse an existing customer gateway](#reuse-an-existing-customer-gateway) - Attach a VPN to a customer gateway that already exists, by ID or by another `vpn_parameters` key
 
+- 📒 [BGP tunnel logs](#bgp-tunnel-logs) - Send BGP logs to the same CloudWatch log group as IKE tunnel logs
+
 - 🏷️ [Per-tunnel tags](#per-tunnel-tags) - Tag tunnel 1 and tunnel 2 independently via `vpn_connection.tunnel1_tags` / `tunnel2_tags`
 
 
