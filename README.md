@@ -20,6 +20,7 @@ The Terraform Wrapper for Site-to-Site VPN simplifies AWS networking integration
 
 
 
+
 ## 🚀 Quick Start
 ```hcl
 vpn_parameters = {
@@ -236,6 +237,8 @@ vpn_parameters = {
 
 
 </details>
+
+
 
 
 ## 📑 Inputs
