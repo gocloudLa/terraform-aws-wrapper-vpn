@@ -102,56 +102,111 @@ locals {
   ]
   create_vpn_connection = merge(flatten(local.create_vpn_connection_tmp)...)
 
-  # key cannot read module.vpn[key] (that cycles). Resolve an explicit id from
-  # config, or look the referenced entry's gateway up by its IP and BGP ASN.
-  referenced_customer_gateways = {
-    for key, value in local.create_vpn_connection : key => {
-      ip_address = local.create_vpn_connection[value.customer_gateway_key].customer_gateway_ip_address
-      bgp_asn    = local.create_vpn_connection[value.customer_gateway_key].customer_gateway_bgp_asn
-    }
-    if(
-      value.customer_gateway_key != null &&
-      value.customer_gateway_id == null &&
-      contains(keys(local.create_vpn_connection), value.customer_gateway_key) &&
-      local.create_vpn_connection[value.customer_gateway_key].customer_gateway_key == null &&
-      local.create_vpn_connection[value.customer_gateway_key].customer_gateway_id == null &&
-      local.create_vpn_connection[value.customer_gateway_key].customer_gateway_ip_address != null
-    )
-  }
-
-  customer_gateway_ids = merge(
-    {
-      for key, value in local.create_vpn_connection : key => value.customer_gateway_id
-      if value.customer_gateway_id != null
-    },
-    {
-      for key, value in local.create_vpn_connection : key => local.create_vpn_connection[value.customer_gateway_key].customer_gateway_id
-      if(
-        value.customer_gateway_key != null &&
-        value.customer_gateway_id == null &&
-        contains(keys(local.create_vpn_connection), value.customer_gateway_key) &&
-        local.create_vpn_connection[value.customer_gateway_key].customer_gateway_id != null
-      )
-    },
-    {
-      for key, value in data.aws_customer_gateway.referenced : key => value.id
-    }
-  )
+  # Entries with customer_gateway.key reuse the gateway another entry creates.
+  # They run in a second module block because a for_each module cannot read its own instances.
+  vpn_customer_gateway_owners     = { for k, v in local.create_vpn_connection : k => v if v.customer_gateway_key == null }
+  vpn_customer_gateway_references = { for k, v in local.create_vpn_connection : k => v if v.customer_gateway_key != null }
 }
 
 module "vpn" {
 
   source = "./modules/aws/terraform-aws-vpn-site-to-site"
 
-  for_each = local.create_vpn_connection
+  for_each = local.vpn_customer_gateway_owners
 
   create_vpn_connection = each.value.create_vpn_connection
 
   vpc_id                       = each.value.vpc_id
   vpn_gateway_amazon_side_asn  = each.value.vpn_gateway_amazon_side_asn
   virtual_private_gateway_id   = each.value.virtual_private_gateway_id
-  create_customer_gateway      = each.value.customer_gateway_key == null && each.value.customer_gateway_id == null
-  customer_gateway_id          = lookup(local.customer_gateway_ids, each.key, null)
+  create_customer_gateway      = each.value.customer_gateway_id == null
+  customer_gateway_id          = each.value.customer_gateway_id
+  customer_gateway_device_name = each.value.customer_gateway_device_name
+  customer_gateway_bgp_asn     = each.value.customer_gateway_bgp_asn
+  customer_gateway_ip_address  = each.value.customer_gateway_ip_address
+  route_table_ids              = each.value.route_table_ids
+
+  transit_gateway_id             = each.value.transit_gateway_id
+  transit_gateway_route_table_id = each.value.transit_gateway_route_table_id
+  transit_gateway_routes         = each.value.transit_gateway_routes
+  # vpn_connection_transport_transit_gateway_attachment_id = each.value.vpn_connection_transport_transit_gateway_attachment_id
+
+  vpn_connection_static_routes_only         = each.value.vpn_connection_static_routes_only
+  vpn_connection_static_routes_destinations = each.value.vpn_connection_static_routes_destinations
+  vpn_connection_enable_acceleration        = each.value.vpn_connection_enable_acceleration
+  vpn_connection_local_ipv4_network_cidr    = each.value.vpn_connection_local_ipv4_network_cidr
+  vpn_connection_local_ipv6_network_cidr    = each.value.vpn_connection_local_ipv6_network_cidr
+  vpn_connection_outside_ip_address_type    = each.value.vpn_connection_outside_ip_address_type
+  vpn_connection_remote_ipv4_network_cidr   = each.value.vpn_connection_remote_ipv4_network_cidr
+  vpn_connection_remote_ipv6_network_cidr   = each.value.vpn_connection_remote_ipv6_network_cidr
+  vpn_connection_tunnel_inside_ip_version   = each.value.vpn_connection_tunnel_inside_ip_version
+  vpn_connection_log_retention_in_days      = each.value.vpn_connection_log_retention_in_days
+
+  vpn_connection_tunnel1_dpd_timeout_action              = each.value.vpn_connection_tunnel1_dpd_timeout_action
+  vpn_connection_tunnel1_dpd_timeout_seconds             = each.value.vpn_connection_tunnel1_dpd_timeout_seconds
+  vpn_connection_tunnel1_ike_versions                    = each.value.vpn_connection_tunnel1_ike_versions
+  vpn_connection_tunnel1_inside_cidr                     = each.value.vpn_connection_tunnel1_inside_cidr
+  vpn_connection_tunnel1_inside_ipv6_cidr                = each.value.vpn_connection_tunnel1_inside_ipv6_cidr
+  vpn_connection_tunnel1_enable_tunnel_lifecycle_control = each.value.vpn_connection_tunnel1_enable_tunnel_lifecycle_control
+  vpn_connection_tunnel1_rekey_fuzz_percentage           = each.value.vpn_connection_tunnel1_rekey_fuzz_percentage
+  vpn_connection_tunnel1_replay_window_size              = each.value.vpn_connection_tunnel1_replay_window_size
+  vpn_connection_tunnel1_rekey_margin_time_seconds       = each.value.vpn_connection_tunnel1_rekey_margin_time_seconds
+  vpn_connection_tunnel1_phase1_encryption_algorithms    = each.value.vpn_connection_tunnel1_phase1_encryption_algorithms
+  vpn_connection_tunnel1_phase2_encryption_algorithms    = each.value.vpn_connection_tunnel1_phase2_encryption_algorithms
+  vpn_connection_tunnel1_phase1_integrity_algorithms     = each.value.vpn_connection_tunnel1_phase1_integrity_algorithms
+  vpn_connection_tunnel1_phase2_integrity_algorithms     = each.value.vpn_connection_tunnel1_phase2_integrity_algorithms
+  vpn_connection_tunnel1_phase1_dh_group_numbers         = each.value.vpn_connection_tunnel1_phase1_dh_group_numbers
+  vpn_connection_tunnel1_phase2_dh_group_numbers         = each.value.vpn_connection_tunnel1_phase2_dh_group_numbers
+  vpn_connection_tunnel1_phase1_lifetime_seconds         = each.value.vpn_connection_tunnel1_phase1_lifetime_seconds
+  vpn_connection_tunnel1_phase2_lifetime_seconds         = each.value.vpn_connection_tunnel1_phase2_lifetime_seconds
+  vpn_connection_tunnel1_preshared_key                   = each.value.vpn_connection_tunnel1_preshared_key
+  vpn_connection_tunnel1_startup_action                  = each.value.vpn_connection_tunnel1_startup_action
+  vpn_connection_tunnel1_cloudwatch_log_enabled          = each.value.vpn_connection_tunnel1_cloudwatch_log_enabled
+  vpn_connection_tunnel1_cloudwatch_log_output_format    = each.value.vpn_connection_tunnel1_cloudwatch_log_output_format
+  vpn_connection_tunnel1_bgp_log_enabled                 = each.value.vpn_connection_tunnel1_bgp_log_enabled
+  vpn_connection_tunnel1_bgp_log_output_format           = each.value.vpn_connection_tunnel1_bgp_log_output_format
+
+  vpn_connection_tunnel2_dpd_timeout_action              = each.value.vpn_connection_tunnel2_dpd_timeout_action
+  vpn_connection_tunnel2_dpd_timeout_seconds             = each.value.vpn_connection_tunnel2_dpd_timeout_seconds
+  vpn_connection_tunnel2_ike_versions                    = each.value.vpn_connection_tunnel2_ike_versions
+  vpn_connection_tunnel2_inside_cidr                     = each.value.vpn_connection_tunnel2_inside_cidr
+  vpn_connection_tunnel2_inside_ipv6_cidr                = each.value.vpn_connection_tunnel2_inside_ipv6_cidr
+  vpn_connection_tunnel2_enable_tunnel_lifecycle_control = each.value.vpn_connection_tunnel2_enable_tunnel_lifecycle_control
+  vpn_connection_tunnel2_rekey_fuzz_percentage           = each.value.vpn_connection_tunnel2_rekey_fuzz_percentage
+  vpn_connection_tunnel2_replay_window_size              = each.value.vpn_connection_tunnel2_replay_window_size
+  vpn_connection_tunnel2_rekey_margin_time_seconds       = each.value.vpn_connection_tunnel2_rekey_margin_time_seconds
+  vpn_connection_tunnel2_phase1_encryption_algorithms    = each.value.vpn_connection_tunnel2_phase1_encryption_algorithms
+  vpn_connection_tunnel2_phase2_encryption_algorithms    = each.value.vpn_connection_tunnel2_phase2_encryption_algorithms
+  vpn_connection_tunnel2_phase1_integrity_algorithms     = each.value.vpn_connection_tunnel2_phase1_integrity_algorithms
+  vpn_connection_tunnel2_phase2_integrity_algorithms     = each.value.vpn_connection_tunnel2_phase2_integrity_algorithms
+  vpn_connection_tunnel2_phase1_dh_group_numbers         = each.value.vpn_connection_tunnel2_phase1_dh_group_numbers
+  vpn_connection_tunnel2_phase2_dh_group_numbers         = each.value.vpn_connection_tunnel2_phase2_dh_group_numbers
+  vpn_connection_tunnel2_phase1_lifetime_seconds         = each.value.vpn_connection_tunnel2_phase1_lifetime_seconds
+  vpn_connection_tunnel2_phase2_lifetime_seconds         = each.value.vpn_connection_tunnel2_phase2_lifetime_seconds
+  vpn_connection_tunnel2_preshared_key                   = each.value.vpn_connection_tunnel2_preshared_key
+  vpn_connection_tunnel2_startup_action                  = each.value.vpn_connection_tunnel2_startup_action
+  vpn_connection_tunnel2_cloudwatch_log_enabled          = each.value.vpn_connection_tunnel2_cloudwatch_log_enabled
+  vpn_connection_tunnel2_cloudwatch_log_output_format    = each.value.vpn_connection_tunnel2_cloudwatch_log_output_format
+  vpn_connection_tunnel2_bgp_log_enabled                 = each.value.vpn_connection_tunnel2_bgp_log_enabled
+  vpn_connection_tunnel2_bgp_log_output_format           = each.value.vpn_connection_tunnel2_bgp_log_output_format
+
+  tags = merge(lookup(each.value, "tags", local.common_tags), { Name = "${local.common_name}-${each.key}" })
+
+}
+
+module "vpn_customer_gateway_reference" {
+
+  source = "./modules/aws/terraform-aws-vpn-site-to-site"
+
+  for_each = local.vpn_customer_gateway_references
+
+  create_vpn_connection = each.value.create_vpn_connection
+
+  vpc_id                       = each.value.vpc_id
+  vpn_gateway_amazon_side_asn  = each.value.vpn_gateway_amazon_side_asn
+  virtual_private_gateway_id   = each.value.virtual_private_gateway_id
+  create_customer_gateway      = false
+  customer_gateway_id          = module.vpn[each.value.customer_gateway_key].customer_gateway_id
   customer_gateway_device_name = each.value.customer_gateway_device_name
   customer_gateway_bgp_asn     = each.value.customer_gateway_bgp_asn
   customer_gateway_ip_address  = each.value.customer_gateway_ip_address
@@ -226,39 +281,9 @@ module "vpn" {
 }
 
 
-resource "terraform_data" "customer_gateway_key" {
-  for_each = {
-    for key, value in local.create_vpn_connection : key => value
-    if value.customer_gateway_key != null && value.customer_gateway_id == null && (
-      !contains(keys(local.create_vpn_connection), value.customer_gateway_key) ||
-      value.customer_gateway_key == key ||
-      (
-        try(local.create_vpn_connection[value.customer_gateway_key].customer_gateway_id, null) == null &&
-        try(local.create_vpn_connection[value.customer_gateway_key].customer_gateway_ip_address, null) == null
-      ) ||
-      try(local.create_vpn_connection[value.customer_gateway_key].customer_gateway_key, null) != null
-    )
-  }
-
-  lifecycle {
-    precondition {
-      condition = (
-        contains(keys(local.create_vpn_connection), each.value.customer_gateway_key) &&
-        each.value.customer_gateway_key != each.key &&
-        try(local.create_vpn_connection[each.value.customer_gateway_key].customer_gateway_key, null) == null &&
-        (
-          try(local.create_vpn_connection[each.value.customer_gateway_key].customer_gateway_id, null) != null ||
-          try(local.create_vpn_connection[each.value.customer_gateway_key].customer_gateway_ip_address, null) != null
-        )
-      )
-      error_message = "customer_gateway.key \"${each.value.customer_gateway_key}\" on \"${each.key}\" must be another vpn_parameters entry that sets ip_address or customer_gateway_id."
-    }
-  }
-}
-
-
 locals {
-  vpns = module.vpn
+  vpns = merge(module.vpn, module.vpn_customer_gateway_reference)
+
 
   create_routes_tmp = [
     for vpn_key, vpn_config in var.vpn_parameters :
