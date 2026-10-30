@@ -7,6 +7,11 @@ output "virtual_private_gateway_id" {
   value = try(aws_vpn_gateway.this[0].id, var.virtual_private_gateway_id, null)
 }
 
+output "transit_gateway_attachment_id" {
+  description = "TGW attachment ID created with the VPN connection, or null for a VGW VPN."
+  value       = try(aws_vpn_connection.this[0].transit_gateway_attachment_id, null)
+}
+
 
 
 # output "vpn_connection_id" {

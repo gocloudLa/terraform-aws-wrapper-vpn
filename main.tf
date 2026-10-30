@@ -14,6 +14,7 @@ locals {
           var.tgw_parameter.transit_gateway[vpn_config.tgw].ec2_transit_gateway_id,
           null
         )
+        attach_to_transit_gateway = try(vpn_config.transit_gateway_id, null) != null || try(vpn_config.tgw, null) != null
         transit_gateway_route_table_id = try(
           vpn_config.transit_gateway_route_table_id,
           var.tgw_parameter.transit_gateway[vpn_config.tgw].ec2_transit_gateway_association_default_route_table_id,
@@ -21,6 +22,13 @@ locals {
           null
         )
         transit_gateway_routes = try(vpn_config.transit_gateway_routes, {})
+        # Named TGW route tables (_transit_gateway.tf) replace the single-table routes in the submodule.
+        create_transit_gateway_routes = try(
+          vpn_config.create_transit_gateway_routes,
+          try(vpn_config.transit_gateway_route_table_id, null) != null ? true : (
+            try(vpn_config.transit_gateway_route_table, null) != null || length(try(vpn_config.transit_gateway_static_route_tables, [])) > 0 ? false : null
+          )
+        )
         route_table_ids = [
           for route_table_key in vpn_config.vpn_connection.route_table_keys :
           var.vpc_parameter.route_tables[route_table_key].id
@@ -126,9 +134,11 @@ module "vpn" {
   customer_gateway_ip_address  = each.value.customer_gateway_ip_address
   route_table_ids              = each.value.route_table_ids
 
+  attach_to_transit_gateway      = each.value.attach_to_transit_gateway
   transit_gateway_id             = each.value.transit_gateway_id
   transit_gateway_route_table_id = each.value.transit_gateway_route_table_id
   transit_gateway_routes         = each.value.transit_gateway_routes
+  create_transit_gateway_routes  = each.value.create_transit_gateway_routes
   # vpn_connection_transport_transit_gateway_attachment_id = each.value.vpn_connection_transport_transit_gateway_attachment_id
 
   vpn_connection_static_routes_only         = each.value.vpn_connection_static_routes_only
@@ -212,9 +222,11 @@ module "vpn_customer_gateway_reference" {
   customer_gateway_ip_address  = each.value.customer_gateway_ip_address
   route_table_ids              = each.value.route_table_ids
 
+  attach_to_transit_gateway      = each.value.attach_to_transit_gateway
   transit_gateway_id             = each.value.transit_gateway_id
   transit_gateway_route_table_id = each.value.transit_gateway_route_table_id
   transit_gateway_routes         = each.value.transit_gateway_routes
+  create_transit_gateway_routes  = each.value.create_transit_gateway_routes
   # vpn_connection_transport_transit_gateway_attachment_id = each.value.vpn_connection_transport_transit_gateway_attachment_id
 
   vpn_connection_static_routes_only         = each.value.vpn_connection_static_routes_only

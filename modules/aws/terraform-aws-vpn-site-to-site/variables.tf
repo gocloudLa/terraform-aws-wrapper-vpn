@@ -449,11 +449,23 @@ variable "transit_gateway_id" {
   description = "Existing Transit Gateway ID. If provided, the module will not create a Virtual Private Gateway but instead will use the transit_gateway."
 }
 
+variable "attach_to_transit_gateway" {
+  type        = bool
+  default     = null
+  description = "When true, attach the VPN connection to transit_gateway_id instead of a Virtual Private Gateway. Null derives this from transit_gateway_id. Set it when transit_gateway_id is only known after apply."
+}
+
 variable "transit_gateway_route_table_id" {
   type        = string
   description = "TGW route table ID. Required (non-empty) when using a TGW-attached VPN with `static_routes_only` so on-prem CIDRs can be installed via `aws_ec2_transit_gateway_route`; also used for optional entries in `transit_gateway_routes`."
   default     = null
   nullable    = true
+}
+
+variable "create_transit_gateway_routes" {
+  type        = bool
+  default     = null
+  description = "When false, skip the TGW routes for this VPN (static_routes_destinations and transit_gateway_routes), e.g. when named TGW route tables own them. Null derives this from transit_gateway_route_table_id. Set it when transit_gateway_route_table_id is only known after apply."
 }
 
 variable "transit_gateway_routes" {

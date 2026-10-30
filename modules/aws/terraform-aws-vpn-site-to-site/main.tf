@@ -44,7 +44,7 @@ resource "aws_vpn_connection" "this" {
   customer_gateway_id      = local.create_customer_gateway ? aws_customer_gateway.this[0].id : var.customer_gateway_id
   type                     = "ipsec.1"
   static_routes_only       = var.vpn_connection_static_routes_only
-  enable_acceleration      = var.vpn_connection_enable_acceleration
+  enable_acceleration      = local.transit_gateway_enabled ? var.vpn_connection_enable_acceleration : null
   local_ipv4_network_cidr  = var.vpn_connection_local_ipv4_network_cidr
   local_ipv6_network_cidr  = var.vpn_connection_local_ipv6_network_cidr
   outside_ip_address_type  = var.vpn_connection_outside_ip_address_type

@@ -130,6 +130,8 @@ features:
     short_description: VPN terminates on the TGW; set `tgw`, `virtual_private_gateway = null`, and `route_table_keys = []`
     long_description: |
       Use **`tgw`** (key into `tgw_parameter.transit_gateway`, same shape as `wrapper-tgw` outputs) so the connection attaches to the Transit Gateway instead of a VGW. Set **`virtual_private_gateway = null`** and **`vpn_connection.route_table_keys = []`** (VPC route propagation does not apply). `static_routes_destinations` drive static routes toward the VPN attachment in the resolved TGW route table. `remote_ipv4_network_cidr` on `aws_vpn_connection` is still a single value—if several VPC CIDRs sit behind the TGW, use an aggregate that covers them (as in `examples/complete`). Override IDs with `transit_gateway_id` / `transit_gateway_route_table_id` when not using the wrapper map.
+
+      **Named TGW route tables** (`wrapper-tgw` `route_tables`): set `transit_gateway_route_table` (table the VPN attachment associates with), `transit_gateway_propagations` (tables that learn the VPN routes; only BGP VPNs propagate anything) and `transit_gateway_static_route_tables` (tables that get a route per `static_routes_destinations` toward the VPN). Keys resolve through `tgw_parameter.route_table_ids[<tgw>]`, so this works when the TGW, its tables and the VPN are created in the same apply. Do not also list the VPN under `wrapper-tgw` `attachments`. Setting any of these turns off the single-table routes (`create_transit_gateway_routes = false`).
     examples:
       - title: Configuration Code
         code: |
@@ -241,6 +243,10 @@ input_table: |
   | transit_gateway_id | Transit Gateway ID when the VPN attaches to a TGW instead of a VGW. | `string` | `null` | no |
   | transit_gateway_route_table_id | TGW route table for static routes / optional TGW routes. | `string` | `null` | no |
   | transit_gateway_routes | Map of extra TGW routes (`destination_cidr_block`, optional `blackhole`). | `map` | `{}` | no |
+  | create_transit_gateway_routes | Create `static_routes_destinations` and `transit_gateway_routes` in `transit_gateway_route_table_id`. Set it when that ID belongs to a TGW created in the same apply. | `bool` | `true` with `transit_gateway_route_table_id`, `false` with named tables, else derived from the ID | no |
+  | transit_gateway_route_table | `wrapper-tgw` `route_tables` key to associate the VPN attachment with. | `string` | `null` | no |
+  | transit_gateway_propagations | `wrapper-tgw` `route_tables` keys that propagate the VPN attachment. | `list(string)` | `[]` | no |
+  | transit_gateway_static_route_tables | `wrapper-tgw` `route_tables` keys that get a static route per `static_routes_destinations`. | `list(string)` | `[]` | no |
   | vpn_connection_static_routes_only | Use static routes only (no BGP). | `bool` | `false` | no |
   | vpn_connection_static_routes_destinations | On-prem CIDRs for static routing (VGW or TGW). | `list(string)` | `[]` | no |
   | vpn_connection_local_ipv4_network_cidr | IPv4 CIDR on the customer (on-premises) side. | `string` | `"0.0.0.0/0"` | no |
