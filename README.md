@@ -173,7 +173,7 @@ vpn_parameters = {
 
 
 ### Reuse an existing customer gateway
-Set **`customer_gateway.customer_gateway_id`** to an existing `cgw-...` ID and this entry skips `aws_customer_gateway`. Set **`customer_gateway.key`** to another key in the same `vpn_parameters` map and this entry uses the gateway that entry defines (`ip_address` and `bgp_asn`, or that entry's `customer_gateway_id`) instead of creating one. Omit `key` and the entry creates the gateway from `ip_address`. An explicit ID wins when both are set. The shared gateway keeps the public IP and BGP ASN of the gateway that was created.
+Set **`customer_gateway.customer_gateway_id`** to an existing `cgw-...` ID and this entry skips `aws_customer_gateway`. Set **`customer_gateway.key`** to another key in the same `vpn_parameters` map and this entry reuses that entry's customer gateway (the one it creates from `ip_address`, or its `customer_gateway_id`) instead of creating one. This works in the same apply that creates the gateway, and you can add a referencing entry later to an existing gateway. Omit `key` and the entry creates the gateway from `ip_address`. The plan fails if `key` names a missing entry, itself, or an entry that also uses `key`, or if `key` is combined with `customer_gateway_id`. Entries that use `key` are managed under `module.vpn_customer_gateway_reference`; the `vpns` output includes both.
 
 
 <details><summary>Configuration Code</summary>
