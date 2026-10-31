@@ -200,7 +200,7 @@ module "vpn" {
   vpn_connection_tunnel2_bgp_log_enabled                 = each.value.vpn_connection_tunnel2_bgp_log_enabled
   vpn_connection_tunnel2_bgp_log_output_format           = each.value.vpn_connection_tunnel2_bgp_log_output_format
 
-  tags = merge(lookup(each.value, "tags", local.common_tags), { Name = "${local.common_name}-${each.key}" })
+  tags = merge(try(each.value.tags, local.common_tags), { Name = "${local.common_name}-${each.key}" })
 
 }
 
@@ -288,7 +288,7 @@ module "vpn_customer_gateway_reference" {
   vpn_connection_tunnel2_bgp_log_enabled                 = each.value.vpn_connection_tunnel2_bgp_log_enabled
   vpn_connection_tunnel2_bgp_log_output_format           = each.value.vpn_connection_tunnel2_bgp_log_output_format
 
-  tags = merge(lookup(each.value, "tags", local.common_tags), { Name = "${local.common_name}-${each.key}" })
+  tags = merge(try(each.value.tags, local.common_tags), { Name = "${local.common_name}-${each.key}" })
 
 }
 
@@ -314,7 +314,7 @@ locals {
               transit_gateway_id          = null
               gateway_id                  = local.vpns[vpn_key].virtual_private_gateway_id
             }
-          } if((length(lookup(vpn_config, "vpc_routes", {})) > 0))
+          } if length(try(vpn_config.vpc_routes, {})) > 0
         ]
       ]
     ]

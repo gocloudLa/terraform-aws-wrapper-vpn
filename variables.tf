@@ -51,6 +51,27 @@ variable "vpn_parameters" {
       )
     ])}."
   }
+
+  # Named TGW route table keys only apply to a TGW-attached VPN.
+  validation {
+    condition = alltrue([
+      for k, v in var.vpn_parameters : try(v.tgw, null) != null || (
+        try(v.transit_gateway_route_table, null) == null &&
+        length(try(v.transit_gateway_propagations, [])) == 0 &&
+        length(try(v.transit_gateway_static_route_tables, [])) == 0
+      )
+    ])
+    error_message = "transit_gateway_route_table, transit_gateway_propagations and transit_gateway_static_route_tables require tgw (a key in tgw_parameter.transit_gateway)."
+  }
+
+  # Static routes into named tables are one per vpn_connection.static_routes_destinations entry.
+  validation {
+    condition = alltrue([
+      for k, v in var.vpn_parameters :
+      length(try(v.transit_gateway_static_route_tables, [])) == 0 || length(try(v.vpn_connection.static_routes_destinations, [])) > 0
+    ])
+    error_message = "transit_gateway_static_route_tables requires vpn_connection.static_routes_destinations; without it no route is created."
+  }
 }
 
 variable "vpn_defaults" {
