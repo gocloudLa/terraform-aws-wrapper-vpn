@@ -1,5 +1,5 @@
 output "vpns" {
-  value = module.vpn
+  value = local.vpns
 }
 
 # output "client_vpns" {
