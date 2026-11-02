@@ -33,7 +33,8 @@ module "wrapper_vpn" {
         # bgp_asn = 65000
         # bgp_asn_extended = null
         # certificate_arn = null
-        # customer_gateway_id = null
+        # customer_gateway_id = null # existing cgw-... ; do not create a customer gateway
+        # key                  = null # other vpn_parameters key whose customer gateway this entry reuses
       }
 
       # Tunnel resource settings; if omitted, null/default values apply
@@ -59,6 +60,7 @@ module "wrapper_vpn" {
         tunnel1_phase2_encryption_algorithms = ["AES256"]
         tunnel1_phase2_integrity_algorithms  = ["SHA2-256"]
         tunnel1_cloudwatch_log_enabled       = true
+        tunnel1_bgp_log_enabled              = true
 
         tunnel2_preshared_key                = "12345678" # local.secrets.vpn_preshared_key
         tunnel2_ike_versions                 = ["ikev2"]
@@ -71,6 +73,7 @@ module "wrapper_vpn" {
         tunnel2_phase2_encryption_algorithms = ["AES256"]
         tunnel2_phase2_integrity_algorithms  = ["SHA2-256"]
         tunnel2_cloudwatch_log_enabled       = true
+        tunnel2_bgp_log_enabled              = true
       }
 
       vpc_routes = {
@@ -87,11 +90,17 @@ module "wrapper_vpn" {
     "vpn-tgw" = {
       # vpc = "networking" # Key into vpc_parameter (not vpc_name)
       tgw = "tgw-01"
-      # transit_gateway_id             = "tgw-00cd4aadd925dc3c0"
-      # transit_gateway_route_table_id = "tgw-rtb-025d697f9ca4f6cf0"
+      # transit_gateway_id             = "tgw-01xxxxxxxxxxxxx"     # Default: tgw_parameter.transit_gateway[tgw]
+      # transit_gateway_route_table_id = "tgw-rtb-01xxxxxxxxxxxxx" # Single-table mode: static routes go here (default: TGW default table)
       virtual_private_gateway = null
+
+      # Named route tables from wrapper-tgw (tgw_parameters["tgw-01"].route_tables). Do not also list this
+      # VPN under the TGW wrapper's attachments, or it is associated twice.
+      transit_gateway_route_table         = "hybrid"            # Table the VPN attachment associates with
+      transit_gateway_static_route_tables = ["shared", "spoke"] # One route per static_routes_destinations toward the VPN
+      # transit_gateway_propagations      = ["shared"]          # BGP VPNs only: tables that learn the routes the customer advertises
       customer_gateway = {
-        ip_address = "222.222.222.222" // Required, Public IP of client VPN 
+        key = "vpn-vpc" # Reuse the customer gateway created by vpn-vpc (same apply); or set ip_address to create one
       }
       # Tunnel resource settings; if omitted, null/default values apply
       vpn_connection = {
@@ -108,8 +117,10 @@ module "wrapper_vpn" {
 
         tunnel1_preshared_key          = "12345678" # local.secrets.vpn_preshared_key
         tunnel1_cloudwatch_log_enabled = true
+        tunnel1_bgp_log_enabled        = true
         tunnel2_preshared_key          = "12345678" # local.secrets.vpn_preshared_key
         tunnel2_cloudwatch_log_enabled = true
+        tunnel2_bgp_log_enabled        = true
       }
     }
   }

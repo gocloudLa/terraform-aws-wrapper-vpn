@@ -7,6 +7,12 @@ variable "customer_gateway_id" {
   default     = null
 }
 
+variable "create_customer_gateway" {
+  type        = bool
+  description = "When false, reuse customer_gateway_id and do not create a customer gateway. Null derives this from customer_gateway_id == null. Set false when customer_gateway_id is only known after apply."
+  default     = null
+}
+
 variable "customer_gateway_device_name" {
   type        = string
   description = "The Device Name of the Customer Gateway"
@@ -266,6 +272,20 @@ variable "vpn_connection_tunnel1_cloudwatch_log_output_format" {
   nullable    = false
 }
 
+variable "vpn_connection_tunnel1_bgp_log_enabled" {
+  type        = bool
+  description = "Enable or disable BGP logging feature for the tunnel. Uses the same CloudWatch log group as tunnel logs"
+  default     = false
+  nullable    = false
+}
+
+variable "vpn_connection_tunnel1_bgp_log_output_format" {
+  type        = string
+  description = "Set BGP log format for the tunnel. Default format is json. Possible values are `json` and `text`"
+  default     = "json"
+  nullable    = false
+}
+
 variable "vpn_connection_tunnel2_dpd_timeout_action" {
   type        = string
   description = "The action to take after DPD timeout occurs for the second VPN tunnel. Specify restart to restart the IKE initiation. Specify clear to end the IKE session. Valid values are `clear` | `none` | `restart`"
@@ -405,6 +425,20 @@ variable "vpn_connection_tunnel2_cloudwatch_log_output_format" {
   nullable    = false
 }
 
+variable "vpn_connection_tunnel2_bgp_log_enabled" {
+  type        = bool
+  description = "Enable or disable BGP logging feature for the tunnel. Uses the same CloudWatch log group as tunnel logs"
+  default     = false
+  nullable    = false
+}
+
+variable "vpn_connection_tunnel2_bgp_log_output_format" {
+  type        = string
+  description = "Set BGP log format for the tunnel. Default format is json. Possible values are `json` and `text`"
+  default     = "json"
+  nullable    = false
+}
+
 /*----------------------------------------------------------------------*/
 /* Transit Gateway | Variable Definition                                */
 /*----------------------------------------------------------------------*/
@@ -415,11 +449,23 @@ variable "transit_gateway_id" {
   description = "Existing Transit Gateway ID. If provided, the module will not create a Virtual Private Gateway but instead will use the transit_gateway."
 }
 
+variable "attach_to_transit_gateway" {
+  type        = bool
+  default     = null
+  description = "When true, attach the VPN connection to transit_gateway_id instead of a Virtual Private Gateway. Null derives this from transit_gateway_id. Set it when transit_gateway_id is only known after apply."
+}
+
 variable "transit_gateway_route_table_id" {
   type        = string
   description = "TGW route table ID. Required (non-empty) when using a TGW-attached VPN with `static_routes_only` so on-prem CIDRs can be installed via `aws_ec2_transit_gateway_route`; also used for optional entries in `transit_gateway_routes`."
   default     = null
   nullable    = true
+}
+
+variable "create_transit_gateway_routes" {
+  type        = bool
+  default     = null
+  description = "When false, skip the TGW routes for this VPN (static_routes_destinations and transit_gateway_routes), e.g. when named TGW route tables own them. Null derives this from transit_gateway_route_table_id. Set it when transit_gateway_route_table_id is only known after apply."
 }
 
 variable "transit_gateway_routes" {

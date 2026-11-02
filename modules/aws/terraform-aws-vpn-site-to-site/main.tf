@@ -1,6 +1,6 @@
 # https://registry.terraform.io/providers/hashicorp/aws/latest/docs/resources/customer_gateway
 resource "aws_customer_gateway" "this" {
-  count = var.customer_gateway_id == null ? 1 : 0
+  count = local.create_customer_gateway ? 1 : 0
 
   device_name      = var.customer_gateway_device_name == "" ? "${var.tags.Name}" : var.customer_gateway_device_name
   bgp_asn          = var.customer_gateway_bgp_asn <= 2147483647 ? var.customer_gateway_bgp_asn : null
@@ -41,10 +41,10 @@ resource "aws_vpn_connection" "this" {
   vpn_gateway_id     = try(aws_vpn_gateway.this[0].id, var.virtual_private_gateway_id, null)
   transit_gateway_id = local.transit_gateway_enabled ? var.transit_gateway_id : null
 
-  customer_gateway_id      = var.customer_gateway_id != null ? var.customer_gateway_id : aws_customer_gateway.this[0].id
+  customer_gateway_id      = local.create_customer_gateway ? aws_customer_gateway.this[0].id : var.customer_gateway_id
   type                     = "ipsec.1"
   static_routes_only       = var.vpn_connection_static_routes_only
-  enable_acceleration      = var.vpn_connection_enable_acceleration
+  enable_acceleration      = local.transit_gateway_enabled ? var.vpn_connection_enable_acceleration : null
   local_ipv4_network_cidr  = var.vpn_connection_local_ipv4_network_cidr
   local_ipv6_network_cidr  = var.vpn_connection_local_ipv6_network_cidr
   outside_ip_address_type  = var.vpn_connection_outside_ip_address_type
@@ -76,9 +76,12 @@ resource "aws_vpn_connection" "this" {
 
   tunnel1_log_options {
     cloudwatch_log_options {
-      log_enabled       = var.vpn_connection_tunnel1_cloudwatch_log_enabled
-      log_output_format = var.vpn_connection_tunnel1_cloudwatch_log_enabled ? var.vpn_connection_tunnel1_cloudwatch_log_output_format : null
-      log_group_arn     = var.vpn_connection_tunnel1_cloudwatch_log_enabled ? aws_cloudwatch_log_group.this[0].arn : null
+      log_enabled           = var.vpn_connection_tunnel1_cloudwatch_log_enabled
+      log_output_format     = var.vpn_connection_tunnel1_cloudwatch_log_enabled ? var.vpn_connection_tunnel1_cloudwatch_log_output_format : null
+      log_group_arn         = var.vpn_connection_tunnel1_cloudwatch_log_enabled ? aws_cloudwatch_log_group.this[0].arn : null
+      bgp_log_enabled       = var.vpn_connection_tunnel1_bgp_log_enabled
+      bgp_log_output_format = var.vpn_connection_tunnel1_bgp_log_enabled ? var.vpn_connection_tunnel1_bgp_log_output_format : null
+      bgp_log_group_arn     = var.vpn_connection_tunnel1_bgp_log_enabled ? aws_cloudwatch_log_group.this[0].arn : null
     }
   }
 
@@ -105,9 +108,12 @@ resource "aws_vpn_connection" "this" {
 
   tunnel2_log_options {
     cloudwatch_log_options {
-      log_enabled       = var.vpn_connection_tunnel2_cloudwatch_log_enabled
-      log_group_arn     = var.vpn_connection_tunnel2_cloudwatch_log_enabled ? aws_cloudwatch_log_group.this[0].arn : null
-      log_output_format = var.vpn_connection_tunnel2_cloudwatch_log_enabled ? var.vpn_connection_tunnel2_cloudwatch_log_output_format : null
+      log_enabled           = var.vpn_connection_tunnel2_cloudwatch_log_enabled
+      log_group_arn         = var.vpn_connection_tunnel2_cloudwatch_log_enabled ? aws_cloudwatch_log_group.this[0].arn : null
+      log_output_format     = var.vpn_connection_tunnel2_cloudwatch_log_enabled ? var.vpn_connection_tunnel2_cloudwatch_log_output_format : null
+      bgp_log_enabled       = var.vpn_connection_tunnel2_bgp_log_enabled
+      bgp_log_group_arn     = var.vpn_connection_tunnel2_bgp_log_enabled ? aws_cloudwatch_log_group.this[0].arn : null
+      bgp_log_output_format = var.vpn_connection_tunnel2_bgp_log_enabled ? var.vpn_connection_tunnel2_bgp_log_output_format : null
     }
   }
 

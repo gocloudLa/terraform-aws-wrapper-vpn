@@ -9,7 +9,7 @@ variable "vpc_parameter" {
 
 variable "tgw_parameter" {
   type        = any
-  description = "Map with transit_gateway output map from wrapper TGW (if using TGW attachment)."
+  description = "Outputs from wrapper TGW: transit_gateway and route_table_ids (if using TGW attachment)."
   default     = {}
 }
 

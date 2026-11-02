@@ -1,5 +1,15 @@
+output "customer_gateway_id" {
+  description = "ID of the customer gateway created for this VPN, or the existing ID when one was passed in."
+  value       = local.create_customer_gateway ? aws_customer_gateway.this[0].id : var.customer_gateway_id
+}
+
 output "virtual_private_gateway_id" {
   value = try(aws_vpn_gateway.this[0].id, var.virtual_private_gateway_id, null)
+}
+
+output "transit_gateway_attachment_id" {
+  description = "TGW attachment ID created with the VPN connection, or null for a VGW VPN."
+  value       = try(aws_vpn_connection.this[0].transit_gateway_attachment_id, null)
 }
 
 

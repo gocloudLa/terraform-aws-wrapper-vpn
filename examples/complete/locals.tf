@@ -22,6 +22,14 @@ locals {
         ec2_transit_gateway_route_table_id                     = "tgw-rtb-01xxxxxxxxxxxxx"
       }
     }
+    # Named route tables (wrapper-tgw route_tables), keyed by tgw then route table key
+    route_table_ids = {
+      "tgw-01" = {
+        shared = "tgw-rtb-02xxxxxxxxxxxxx"
+        hybrid = "tgw-rtb-03xxxxxxxxxxxxx"
+        spoke  = "tgw-rtb-04xxxxxxxxxxxxx"
+      }
+    }
   }
 
 }
