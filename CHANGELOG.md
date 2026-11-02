@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.2.0](https://github.com/gocloudLa/terraform-aws-wrapper-vpn/compare/v0.1.0...v0.2.0) (2026-11-02)
+
+
+### Features
+
+* **vpn:** reuse an existing customer gateway ([#3](https://github.com/gocloudLa/terraform-aws-wrapper-vpn/issues/3)) ([bfd93f6](https://github.com/gocloudLa/terraform-aws-wrapper-vpn/commit/bfd93f6cbeb1060be0d18e422c1e02889cdcefb3))
+
 ## 0.1.0 (2026-06-29)
 
 
